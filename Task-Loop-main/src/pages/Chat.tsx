@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
 import ChatList from '@/components/ChatList';
 import ChatBox from '@/components/ChatBox';
 import AddUserDialog from '@/components/AddUserDialog';
@@ -284,19 +283,20 @@ const Chat = () => {
   };
 
   return (
-    <Layout requireAuth>
-      <div className="container mx-auto h-[calc(100vh-5rem)] flex">
-        <div className="w-full md:w-[30%] border-r">
-          <ChatList 
-            chats={chats} 
-            selectedChatId={selectedChat?.id} 
-            onSelectChat={handleChatSelect}
-            onAddUser={() => setIsAddUserDialogOpen(true)} 
+    <div className="container mx-auto py-8">
+      <div className="flex h-[calc(100vh-12rem)]">
+        <div className="w-80 border-r">
+          <ChatList
+            chats={chats}
+            selectedChat={selectedChat}
+            onChatSelect={handleChatSelect}
+            onAddUser={() => setIsAddUserDialogOpen(true)}
           />
         </div>
-        <div className="hidden md:block md:w-[70%]">
+        
+        <div className="flex-1">
           {selectedChat ? (
-            <ChatBox 
+            <ChatBox
               chat={selectedChat} 
               messages={messages[selectedChat.id] || []} 
               onSendMessage={handleSendMessage} 
@@ -332,7 +332,7 @@ const Chat = () => {
         onOpenChange={setIsAddUserDialogOpen}
         onSendRequest={handleSendChatRequest}
       />
-    </Layout>
+    </div>
   );
 };
 

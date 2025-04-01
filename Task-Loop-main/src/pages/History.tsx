@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Layout from '@/components/Layout';
 import TaskCard from '@/components/TaskCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -107,86 +106,84 @@ const History = () => {
   const completedTasks = filteredTasks.filter(task => task.doerId === 'user1');
 
   return (
-    <Layout requireAuth>
-      <div className="container mx-auto py-8">
-        <h1 className="text-xl font-semibold text-primary mb-6">Task History</h1>
-        
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tasks by name, description, or location..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">All Tasks ({filteredTasks.length})</TabsTrigger>
-            <TabsTrigger value="created">Created Tasks ({createdTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed Tasks ({completedTasks.length})</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all">
-            <div className="flex flex-col space-y-6">
-              {filteredTasks.length > 0 ? (
-                filteredTasks.map(task => (
-                  <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    isOwner={task.creatorId === 'user1'}
-                    isCompleted={true}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-10">
-                  <p className="text-muted-foreground">No tasks found matching your search.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="created">
-            <div className="flex flex-col space-y-6">
-              {createdTasks.length > 0 ? (
-                createdTasks.map(task => (
-                  <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    isOwner={true}
-                    isCompleted={true}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-10">
-                  <p className="text-muted-foreground">No created tasks found matching your search.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="completed">
-            <div className="flex flex-col space-y-6">
-              {completedTasks.length > 0 ? (
-                completedTasks.map(task => (
-                  <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    isOwner={false}
-                    isCompleted={true}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-10">
-                  <p className="text-muted-foreground">No completed tasks found matching your search.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+    <div className="container mx-auto py-8">
+      <h1 className="text-xl font-semibold text-primary mb-6">Task History</h1>
+      
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search tasks by name, description, or location..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
-    </Layout>
+      
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="all">All Tasks ({filteredTasks.length})</TabsTrigger>
+          <TabsTrigger value="created">Created Tasks ({createdTasks.length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed Tasks ({completedTasks.length})</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all">
+          <div className="flex flex-col space-y-6">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  isOwner={task.creatorId === 'user1'}
+                  isCompleted={true}
+                />
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">No tasks found matching your search.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="created">
+          <div className="flex flex-col space-y-6">
+            {createdTasks.length > 0 ? (
+              createdTasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  isOwner={true}
+                  isCompleted={true}
+                />
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">No created tasks found matching your search.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="completed">
+          <div className="flex flex-col space-y-6">
+            {completedTasks.length > 0 ? (
+              completedTasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  isOwner={false}
+                  isCompleted={true}
+                />
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">No completed tasks found matching your search.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

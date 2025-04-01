@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -351,216 +350,213 @@ const Profile = () => {
   }
 
   return (
-    <Layout requireAuth>
-      <div className="container mx-auto py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                Profile
-                {!isEditing && (
-                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                    <Edit size={16} />
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center space-y-4">
-                <div className="relative">
-                  <Avatar className="h-24 w-24">
-                    {profile.avatar_url ? (
-                      <AvatarImage 
-                        src={profile.avatar_url} 
-                        alt={profile.username}
-                      />
-                    ) : (
-                      <AvatarFallback>
-                        <User className="h-12 w-12" />
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <Button 
-                
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                    onClick={() => setIsProfileImageDialogOpen(true)}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {isEditing ? (
-                  <form onSubmit={handleSubmit} className="w-full space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}
-                        onClick={handleSubmit}
-                      >
-                        Save Changes
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <div className="text-center">
-                      <h3 className="text-xl font-medium">{profile.username}</h3>
-                      <p className="text-sm text-muted-foreground">{profile.email}</p>
-                    </div>
-                    
-                    <div className="flex justify-center space-x-6 w-full">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center">
-                          <p className="text-yellow-500 font-bold">{profile.requestorRating?.toFixed(1) || 'N/A'}</p>
-                          <Star className="h-4 w-4 text-yellow-500 ml-1" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">Requestor Rating</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center justify-center">
-                          <p className="text-green-500 font-bold">{profile.doerRating?.toFixed(1) || 'N/A'}</p>
-                          <Star className="h-4 w-4 text-green-500 ml-1" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">Doer Rating</p>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      variant="outline" 
-                      className={buttonVariants({ variant: "default" })}
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
-                  </>
-                )}
+    <div className="container mx-auto py-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex justify-between items-center">
+              Profile
+              {!isEditing && (
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit size={16} />
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative">
+                <Avatar className="h-24 w-24">
+                  {profile.avatar_url ? (
+                    <AvatarImage 
+                      src={profile.avatar_url} 
+                      alt={profile.username}
+                    />
+                  ) : (
+                    <AvatarFallback>
+                      <User className="h-12 w-12" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <Button 
+                  className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                  onClick={() => setIsProfileImageDialogOpen(true)}
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-          
-          <div className="md:col-span-2">
-            <Tabs defaultValue="tasks">
-              <TabsList>
-                <TabsTrigger value="tasks">Active Tasks</TabsTrigger>
-                <TabsTrigger value="stats">Statistics</TabsTrigger>
-              </TabsList>
               
-              <TabsContent value="tasks" className="mt-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium">Your Active Tasks ({activeTasks.length})</h3>
-                  <Button
-                    className={cn(buttonVariants({ variant: "default" }))}
-                    onClick={() => navigate('/create-task')}
+              {isEditing ? (
+                <form onSubmit={handleSubmit} className="w-full space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button 
+                      className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                      onClick={() => setIsEditing(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}
+                      onClick={handleSubmit}
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <h3 className="text-xl font-medium">{profile.username}</h3>
+                    <p className="text-sm text-muted-foreground">{profile.email}</p>
+                  </div>
+                  
+                  <div className="flex justify-center space-x-6 w-full">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center">
+                        <p className="text-yellow-500 font-bold">{profile.requestorRating?.toFixed(1) || 'N/A'}</p>
+                        <Star className="h-4 w-4 text-yellow-500 ml-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Requestor Rating</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center">
+                        <p className="text-green-500 font-bold">{profile.doerRating?.toFixed(1) || 'N/A'}</p>
+                        <Star className="h-4 w-4 text-green-500 ml-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Doer Rating</p>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    className={buttonVariants({ variant: "default" })}
+                    onClick={handleLogout}
                   >
-                    Create New Task
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
                   </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <div className="md:col-span-2">
+          <Tabs defaultValue="tasks">
+            <TabsList>
+              <TabsTrigger value="tasks">Active Tasks</TabsTrigger>
+              <TabsTrigger value="stats">Statistics</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="tasks" className="mt-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Your Active Tasks ({activeTasks.length})</h3>
+                <Button
+                  className={cn(buttonVariants({ variant: "default" }))}
+                  onClick={() => navigate('/create-task')}
+                >
+                  Create New Task
+                </Button>
+              </div>
+              {loadingTasks ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-                {loadingTasks ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : activeTasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No active tasks found
-                  </div>
-                ) : (
-                  <div className="flex flex-col space-y-6">
-                    {activeTasks.map(task => (
-                      <TaskCard
-                        key={task.id}
-                        task={{
-                          id: task.id,
-                          title: task.title,
-                          description: task.description,
-                          location: task.location,
-                          reward: task.reward,
-                          deadline: new Date(task.deadline),
-                          taskType: task.task_type as "normal" | "joint",
-                          status: task.status as "active" | "completed",
-                          createdAt: new Date(task.created_at),
-                          creatorId: task.creator_id,
-                          creatorName: task.creator_name,
-                          creatorRating: task.creator_rating,
-                        }}
-                        isOwner={true}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="stats" className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Tasks Created</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">12</div>
-                      <p className="text-xs text-muted-foreground">All time</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Tasks Completed</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">8</div>
-                      <p className="text-xs text-muted-foreground">As a doer</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Total Rewards Earned</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">₹4,500</div>
-                      <p className="text-xs text-muted-foreground">As a doer</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Total Rewards Paid</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">₹7,200</div>
-                      <p className="text-xs text-muted-foreground">As a requestor</p>
-                    </CardContent>
-                  </Card>
+              ) : activeTasks.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No active tasks found
                 </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+              ) : (
+                <div className="flex flex-col space-y-6">
+                  {activeTasks.map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={{
+                        id: task.id,
+                        title: task.title,
+                        description: task.description,
+                        location: task.location,
+                        reward: task.reward,
+                        deadline: new Date(task.deadline),
+                        taskType: task.task_type as "normal" | "joint",
+                        status: task.status as "active" | "completed",
+                        createdAt: new Date(task.created_at),
+                        creatorId: task.creator_id,
+                        creatorName: task.creator_name,
+                        creatorRating: task.creator_rating,
+                      }}
+                      isOwner={true}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="stats" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Tasks Created</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">12</div>
+                    <p className="text-xs text-muted-foreground">All time</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Tasks Completed</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">8</div>
+                    <p className="text-xs text-muted-foreground">As a doer</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Total Rewards Earned</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">₹4,500</div>
+                    <p className="text-xs text-muted-foreground">As a doer</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Total Rewards Paid</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">₹7,200</div>
+                    <p className="text-xs text-muted-foreground">As a requestor</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
@@ -601,7 +597,7 @@ const Profile = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 };
 

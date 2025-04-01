@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
@@ -12,20 +13,18 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await signIn(email, password);
 
-      if (authError) throw authError;
+      if (error) throw error;
 
-      if (!authData?.user) {
+      if (!data?.user) {
         throw new Error('Failed to login');
       }
 
@@ -33,7 +32,7 @@ const Login = () => {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', authData.user.id)
+        .eq('id', data.user.id)
         .single();
 
       if (userError && userError.code !== 'PGRST116') { // PGRST116 is "not found"
@@ -47,9 +46,9 @@ const Login = () => {
           .from('users')
           .insert([
             {
-              id: authData.user.id,
-              username: authData.user.user_metadata.username || email.split('@')[0],
-              email: authData.user.email,
+              id: data.user.id,
+              username: data.user.user_metadata.username || email.split('@')[0],
+              email: data.user.email,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }

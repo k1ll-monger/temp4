@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Layout from '@/components/Layout';
 import TaskCard from '@/components/TaskCard';
 import CreateTaskForm from '@/components/CreateTaskForm';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -258,8 +257,8 @@ const Task = () => {
   const hasPendingRequests = taskApplications.length > 0 || taskJointRequests.length > 0;
 
   return (
-    <Layout requireAuth>
-      <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8">
+      <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <Tabs defaultValue="active" className="w-full">
             <div className="flex justify-between items-center">
@@ -519,7 +518,7 @@ const Task = () => {
           </Tabs>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 

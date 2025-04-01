@@ -1,7 +1,5 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import TaskCard from '@/components/TaskCard';
 import { TaskType } from '@/lib/types';
@@ -85,32 +83,30 @@ const Index = () => {
   };
 
   return (
-    <Layout onSearch={handleSearch} requireAuth>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-semibold text-primary">Available Tasks</h1>
-          <Link to="/task">
-            <Button className="flex items-center gap-2">
-              <PlusCircle size={20} />
-              Create Task
-            </Button>
-          </Link>
-        </div>
-
-        {filteredTasks.length === 0 ? (
-          <div className="text-center py-10">
-            <h2 className="text-2xl font-semibold text-gray-500">No tasks found</h2>
-            <p className="mt-2 text-gray-400">Try adjusting your search or create a new task</p>
-          </div>
-        ) : (
-          <div className="flex flex-col space-y-6">
-            {filteredTasks.map(task => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
-        )}
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-xl font-semibold text-primary">Available Tasks</h1>
+        <Link to="/task">
+          <Button className="flex items-center gap-2">
+            <PlusCircle size={20} />
+            Create Task
+          </Button>
+        </Link>
       </div>
-    </Layout>
+
+      {filteredTasks.length === 0 ? (
+        <div className="text-center py-10">
+          <h2 className="text-2xl font-semibold text-gray-500">No tasks found</h2>
+          <p className="mt-2 text-gray-400">Try adjusting your search or create a new task</p>
+        </div>
+      ) : (
+        <div className="flex flex-col space-y-6">
+          {filteredTasks.map(task => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

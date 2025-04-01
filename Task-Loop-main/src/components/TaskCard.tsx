@@ -12,9 +12,24 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import TaskApplications from './TaskApplications';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TaskCardProps {
-  task: TaskType;
+  task: {
+    id: string;
+    title: string;
+    description: string;
+    location: string;
+    reward: number;
+    deadline: Date;
+    taskType: "normal" | "joint";
+    status: "active" | "completed";
+    createdAt: Date;
+    creatorId: string;
+    creatorName: string;
+    creatorRating?: number;
+  };
   isOwner?: boolean;
   isCompleted?: boolean;
   onCancel?: (taskId: string) => void;
@@ -26,6 +41,7 @@ interface TaskCardProps {
   onApproveDoer?: (taskId: string, userId: string) => void;
   onRejectDoer?: (taskId: string, userId: string) => void;
   onAddToChat?: (taskId: string) => void;
+  onStatusChange?: () => void;
 }
 
 const TaskCard = ({ 
@@ -40,7 +56,8 @@ const TaskCard = ({
   onRejectJointRequestor,
   onApproveDoer,
   onRejectDoer,
-  onAddToChat
+  onAddToChat,
+  onStatusChange
 }: TaskCardProps) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -49,8 +66,15 @@ const TaskCard = ({
   const [applicationMessage, setApplicationMessage] = useState('');
   const [jointTaskNeeds, setJointTaskNeeds] = useState('');
   const [jointTaskReward, setJointTaskReward] = useState(100);
+  const [applicantName, setApplicantName] = useState('');
+  const [applicantEmail, setApplicantEmail] = useState('');
+  const [applicantPhone, setApplicantPhone] = useState('');
+  const [proposal, setProposal] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isApplicationsDialogOpen, setIsApplicationsDialogOpen] = useState(false);
+  const { user } = useAuth();
 
   const handleCancel = () => {
     if (onCancel) {
@@ -71,15 +95,51 @@ const TaskCard = ({
     }
   };
 
-  const handleApply = () => {
-    if (onApply && applicationMessage.trim()) {
-      onApply(task.id, applicationMessage);
-      setApplicationMessage('');
-      setIsApplyDialogOpen(false);
+  const handleApply = async () => {
+    if (!user) {
       toast({
-        title: "Application Submitted",
-        description: "Your application has been sent to the task creator."
+        title: "Authentication Required",
+        description: "Please log in to apply for tasks.",
+        variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('task_applications')
+        .insert({
+          task_id: task.id,
+          applicant_id: user.id,
+          applicant_name: user.user_metadata?.name || 'Anonymous',
+          applicant_email: user.email,
+          applicant_phone: applicantPhone,
+          proposal: proposal,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: "Your application has been submitted.",
+      });
+
+      // Reset form
+      setApplicantName('');
+      setApplicantEmail('');
+      setApplicantPhone('');
+      setProposal('');
+      setIsApplyDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error applying for task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -137,8 +197,9 @@ const TaskCard = ({
         description: "Task marked as completed.",
       });
 
-      // Refresh the page to show updated status
-      window.location.reload();
+      if (onStatusChange) {
+        onStatusChange();
+      }
     } catch (error: any) {
       console.error('Error closing task:', error);
       toast({
@@ -221,16 +282,31 @@ const TaskCard = ({
           )}
           
           <div className="mt-auto flex justify-between items-center">
-            <div className="text-sm">{task.creatorName}</div>
-            <div className="flex items-center">
-              <span className="text-yellow-500 font-medium">{task.creatorRating.toFixed(1)}</span>
-              <Star className="h-4 w-4 text-yellow-500 ml-1" fill="currentColor" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Posted by</span>
+              <span className="font-medium">{task.creatorName}</span>
+              {task.creatorRating !== undefined && (
+                <div className="flex items-center gap-1">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <span className="text-sm text-gray-600">
+                    {task.creatorRating.toFixed(1)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
         
         {isOwner && !isCompleted && (
           <CardFooter className="p-4 pt-0 flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsApplicationsDialogOpen(true)}
+            >
+              <MessageCircle className="h-4 w-4 mr-1" />
+              View Applications
+            </Button>
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -250,6 +326,14 @@ const TaskCard = ({
           </CardFooter>
         )}
       </Card>
+
+      {isOwner && (
+        <TaskApplications
+          taskId={task.id}
+          isOpen={isApplicationsDialogOpen}
+          onOpenChange={setIsApplicationsDialogOpen}
+        />
+      )}
 
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
         <DialogContent className="sm:max-w-[550px]">
@@ -281,7 +365,7 @@ const TaskCard = ({
                 <span className="font-medium mr-2">Posted by:</span> 
                 {task.creatorName}
                 <span className="flex items-center ml-2">
-                  <span className="text-yellow-500 font-medium">{task.creatorRating.toFixed(1)}</span>
+                  <span className="text-yellow-500 font-medium">{task.creatorRating?.toFixed(1) || 'N/A'}</span>
                   <Star className="h-4 w-4 text-yellow-500 ml-1" fill="currentColor" />
                 </span>
               </div>
@@ -334,28 +418,75 @@ const TaskCard = ({
           <DialogHeader>
             <DialogTitle>Apply for Task</DialogTitle>
             <DialogDescription>
-              Send a message to the task creator explaining why you're a good fit for this task.
+              Fill in your details and explain why you're a good fit for this task.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="application-message">Your Message</Label>
+              <Label htmlFor="applicant-name">Your Name *</Label>
+              <Input 
+                id="applicant-name" 
+                placeholder="Enter your full name"
+                value={applicantName}
+                onChange={(e) => setApplicantName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="applicant-email">Your Email *</Label>
+              <Input 
+                id="applicant-email" 
+                type="email"
+                placeholder="Enter your email address"
+                value={applicantEmail}
+                onChange={(e) => setApplicantEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="applicant-phone">Your Phone (Optional)</Label>
+              <Input 
+                id="applicant-phone" 
+                type="tel"
+                placeholder="Enter your phone number"
+                value={applicantPhone}
+                onChange={(e) => setApplicantPhone(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="proposal">Your Proposal *</Label>
               <Textarea 
-                id="application-message" 
+                id="proposal" 
                 placeholder="Explain why you're interested in this task and your qualifications..."
-                value={applicationMessage}
-                onChange={(e) => setApplicationMessage(e.target.value)}
+                value={proposal}
+                onChange={(e) => setProposal(e.target.value)}
                 rows={5}
+                required
               />
             </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsApplyDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleApply} disabled={!applicationMessage.trim()}>
-              <Send className="h-4 w-4 mr-2" />
-              Submit Application
+            <Button 
+              onClick={handleApply} 
+              disabled={isSubmitting || !applicantName.trim() || !applicantEmail.trim() || !proposal.trim()}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit Application
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
