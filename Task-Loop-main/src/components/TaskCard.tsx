@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Star, Edit, Trash, MapPin, CalendarClock, MessageCircle, Plus, Send, UserPlus, UserCheck } from 'lucide-react';
+import { Star, Edit, Trash, MapPin, CalendarClock, MessageCircle, Plus, Send, UserPlus, UserCheck, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { TaskType } from '@/lib/types';
@@ -11,6 +11,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TaskCardProps {
   task: TaskType;
@@ -119,6 +120,35 @@ const TaskCard = ({
     });
   };
 
+  const handleCloseTask = async () => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: "Task marked as completed.",
+      });
+
+      // Refresh the page to show updated status
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error closing task:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to close task. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusInfo = () => {
     if (task.status === 'completed' || isCompleted) {
       return {
@@ -152,6 +182,14 @@ const TaskCard = ({
         className={`h-full flex flex-col w-[90%] mx-auto ${!isOwner ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
         onClick={!isOwner ? handleCardClick : undefined}
       >
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-xl">{task.title}</CardTitle>
+            <Badge className={`${statusInfo.bgColor} text-sm`}>
+              {statusInfo.text.charAt(0).toUpperCase() + statusInfo.text.slice(1)}
+            </Badge>
+          </div>
+        </CardHeader>
         <CardContent className="p-4 flex-1">
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-lg">{task.title}</h3>
@@ -368,6 +406,19 @@ const TaskCard = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isOwner && task.status === 'active' && (
+        <CardFooter className="p-4 pt-0 flex justify-end space-x-2">
+          <Button
+            variant="secondary"
+            onClick={handleCloseTask}
+            className="flex items-center gap-2"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Mark as Completed
+          </Button>
+        </CardFooter>
+      )}
     </>
   );
 };

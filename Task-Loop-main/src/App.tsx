@@ -8,12 +8,13 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import LandingPage from "./pages/LandingPage";
 import Leaderboard from "./pages/Leaderboard";
-import Index from "./pages/Index";
+import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Task from "./pages/Task";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
 import ForgotPassword from "./pages/ForgotPassword";
+import CreateTask from "./pages/CreateTask";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +29,8 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/home" element={<Index />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/create-task" element={<CreateTask />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/task" element={<Task />} />

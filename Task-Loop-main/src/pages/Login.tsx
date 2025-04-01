@@ -1,103 +1,157 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const {
-    toast
-  } = useToast();
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
-  const redirect = new URLSearchParams(location.search).get('redirect') || '/home';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem('token', data.token);
-        toast({ title: 'Login Successful', description: 'Welcome back!' });
-        navigate('/home');
-      } else {
-        toast({ title: 'Error', description: data.error, variant: 'destructive' });
+
+      if (authError) throw authError;
+
+      if (!authData?.user) {
+        throw new Error('Failed to login');
       }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Server error', variant: 'destructive' });
+
+      // Check if user exists in users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userError && userError.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error checking user profile:', userError);
+        throw userError;
+      }
+
+      // If user doesn't exist in users table, create it
+      if (!userData) {
+        const { error: createError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: authData.user.id,
+              username: authData.user.user_metadata.username || email.split('@')[0],
+              email: authData.user.email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          ]);
+
+        if (createError) {
+          console.error('Error creating user profile:', createError);
+          // Don't throw here, as the user is already logged in
+        }
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
+
+      setEmail("");
+      setPassword("");
+      navigate("/home");
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast({
+        title: "Login failed",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  return <div className="flex flex-col items-center min-h-screen bg-background">
+  return (
+    <div className="flex flex-col items-center min-h-screen bg-background">
       <div className="w-full text-center py-12">
         <h1 className="text-5xl font-bold text-primary">TaskLoop</h1>
       </div>
       
-      <div className="w-full max-w-md px-4 md:px-0">
-        <div className="border-border bg-card p-6 rounded-lg shadow-md space-y-6 relative overflow-hidden">
+      <div className="w-full max-w-md px-4 md:px-0 mt-8">
+        <div className="border-border bg-card p-6 rounded-lg shadow-md space-y-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-primary to-accent"></div>
           
           <div className="space-y-1">
             <h2 className="text-2xl font-bold text-center">Welcome Back</h2>
             <p className="text-center text-muted-foreground text-sm">
-              Sign in to continue using TaskLoop
+              Sign in to your account
             </p>
           </div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="example@iiitkottayam.ac.in" className="input-dark" value={email} onChange={e => setEmail(e.target.value)} />
+          <form onSubmit={handleLogin}>
+            <div className="grid gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="example@iiitkottayam.ac.in"
+                  className="input-dark"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-              
-              <div className="space-y-2">
+
+              <div className="grid gap-1">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="Enter your password" className="input-dark" value={password} onChange={e => setPassword(e.target.value)} />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  className="input-dark"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="remember" />
-                  <label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Remember for 30 days
-                  </label>
-                </div>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary/90" 
+                disabled={loading}
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+              <div className="flex items-center justify-between mt-1">
+                <Link to="/" className="text-sm text-primary hover:underline">
+                  Back to Home
                 </Link>
               </div>
+              <div className="flex justify-center pt-1">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <Link to="/signup" className="text-primary hover:underline">
+                    Sign Up
+                  </Link>
+                </p>
+              </div>
             </div>
-            
-            <Button type="submit" className="w-full">Sign in</Button>
-            
-            <div className="text-center text-sm">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </div>
-            
-            <div className="flex items-center justify-between mt-2">
-              <Link to="/" className="text-sm text-primary hover:underline">
-                Back to Home
-              </Link>
-            </div>
-            
-            
           </form>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Login;
