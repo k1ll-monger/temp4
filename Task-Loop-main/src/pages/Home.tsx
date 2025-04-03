@@ -15,16 +15,16 @@ interface Task {
   description: string;
   location: string;
   reward: number;
-  deadline: string;
-  task_type: string;
-  status: string;
-  created_at: string;
-  creator_id: string;
-  creator_name: string;
-  creator_rating: number;
-  assigned_to: string | null;
-  completed_at: string | null;
-  updated_at: string;
+  deadline: Date;
+  taskType: "normal" | "joint";
+  status: "active" | "completed";
+  createdAt: Date;
+  creatorId: string;
+  creatorName: string;
+  creatorRating?: number;
+  assignedTo?: string | null;
+  completedAt?: Date | null;
+  updatedAt?: Date;
 }
 
 const Home = () => {
@@ -88,7 +88,7 @@ const Home = () => {
 
       if (error) throw error;
       setTasks(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching tasks:', error);
       toast({
         title: "Error",
@@ -139,6 +139,13 @@ const Home = () => {
           <Button onClick={() => navigate('/create-task')}>Create Task</Button>
         </div>
 
+        <div className="flex flex-wrap gap-4">
+          <Button variant="outline">Active Tasks</Button>
+          <Button variant="outline">Applied Tasks</Button>
+          <Button variant="outline">Created Tasks</Button>
+          <Button variant="outline">Completed Tasks</Button>
+        </div>
+
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <Label htmlFor="search">Search Tasks</Label>
@@ -153,7 +160,6 @@ const Home = () => {
               />
             </div>
           </div>
-
           <div className="w-full md:w-48">
             <Label htmlFor="status">Status</Label>
             <Select value={statusFilter} onValueChange={(value) => handleFilterChange(value, 'status')}>
@@ -240,4 +246,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;

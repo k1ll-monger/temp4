@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '@/components/Navbar'; // Import Navbar
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Table, 
@@ -40,7 +41,7 @@ const Leaderboard = () => {
       const isAuthenticated = localSession ? JSON.parse(localSession).isAuthenticated : false;
 
       if (!isAuthenticated) {
-        navigate('/login');
+        navigate('/login'); // Redirect to login if not authenticated
       }
     } catch (error) {
       console.error('Error parsing session data:', error);
@@ -52,94 +53,97 @@ const Leaderboard = () => {
     avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Trophy size={32} className="text-primary" />
-        <h1 className="text-3xl font-bold text-primary">Leaderboard</h1>
+    <>
+      <Navbar /> {/* Add Navbar */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Trophy size={32} className="text-primary" />
+          <h1 className="text-3xl font-bold text-primary">Leaderboard</h1>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-center">Task Loop Champions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="requestors">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="requestors">Top Requestors</TabsTrigger>
+                <TabsTrigger value="doers">Top Doers</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="requestors">
+                <Table>
+                  <TableCaption>Users who created the most tasks</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">Rank</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Tasks Created</TableHead>
+                      <TableHead className="text-right">Rating</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topRequestors.map((user, index) => (
+                      <TableRow key={user.id} className={index < 3 ? "bg-muted/20" : ""}>
+                        <TableCell className="font-medium">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
+                        </TableCell>
+                        <TableCell className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={getAvatar(user.avatar, user.name)} alt={`${user.name}'s avatar`} />
+                            <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          {user.name}
+                        </TableCell>
+                        <TableCell>{user.tasksCreated}</TableCell>
+                        <TableCell className="text-right text-yellow-500 font-medium">
+                          {user.rating} ⭐
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              
+              <TabsContent value="doers">
+                <Table>
+                  <TableCaption>Users who completed the most tasks</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">Rank</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Tasks Completed</TableHead>
+                      <TableHead className="text-right">Rating</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topDoers.map((user, index) => (
+                      <TableRow key={user.id} className={index < 3 ? "bg-muted/20" : ""}>
+                        <TableCell className="font-medium">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
+                        </TableCell>
+                        <TableCell className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={getAvatar(user.avatar, user.name)} alt={`${user.name}'s avatar`} />
+                            <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          {user.name}
+                        </TableCell>
+                        <TableCell>{user.tasksCompleted}</TableCell>
+                        <TableCell className="text-right text-green-500 font-medium">
+                          {user.rating} <Star className="inline h-4 w-4 text-green-500" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-center">Task Loop Champions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="requestors">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="requestors">Top Requestors</TabsTrigger>
-              <TabsTrigger value="doers">Top Doers</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="requestors">
-              <Table>
-                <TableCaption>Users who created the most tasks</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Rank</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Tasks Created</TableHead>
-                    <TableHead className="text-right">Rating</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topRequestors.map((user, index) => (
-                    <TableRow key={user.id} className={index < 3 ? "bg-muted/20" : ""}>
-                      <TableCell className="font-medium">
-                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
-                      </TableCell>
-                      <TableCell className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={getAvatar(user.avatar, user.name)} alt={`${user.name}'s avatar`} />
-                          <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        {user.name}
-                      </TableCell>
-                      <TableCell>{user.tasksCreated}</TableCell>
-                      <TableCell className="text-right text-yellow-500 font-medium">
-                        {user.rating} ⭐
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="doers">
-              <Table>
-                <TableCaption>Users who completed the most tasks</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Rank</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Tasks Completed</TableHead>
-                    <TableHead className="text-right">Rating</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topDoers.map((user, index) => (
-                    <TableRow key={user.id} className={index < 3 ? "bg-muted/20" : ""}>
-                      <TableCell className="font-medium">
-                        {index === 0 ? "��" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
-                      </TableCell>
-                      <TableCell className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={getAvatar(user.avatar, user.name)} alt={`${user.name}'s avatar`} />
-                          <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        {user.name}
-                      </TableCell>
-                      <TableCell>{user.tasksCompleted}</TableCell>
-                      <TableCell className="text-right text-green-500 font-medium">
-                        {user.rating} <Star className="inline h-4 w-4 text-green-500" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 };
 

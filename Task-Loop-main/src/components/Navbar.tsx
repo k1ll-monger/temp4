@@ -100,7 +100,28 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Notifications />
+          <Link to="/leaderboard" className={navigationMenuTriggerStyle()}>
+            <Trophy className="mr-2 h-4 w-4" />
+            Leaderboard
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <Link to="/chat" className={navigationMenuTriggerStyle()}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Chat
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <Link to="/history" className={navigationMenuTriggerStyle()}>
+            <Calendar className="mr-2 h-4 w-4" />
+            History
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <Link to="/task" className={navigationMenuTriggerStyle()}>
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+          </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
           <Link to="/profile" className={navigationMenuTriggerStyle()}>
@@ -121,28 +142,11 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-4">
-          {isHomePage && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search tasks..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="pl-9 w-[300px]"
-              />
-            </div>
-          )}
           <NavigationMenu>
             <NavigationMenuList>
               <MainNavLinks />
             </NavigationMenuList>
           </NavigationMenu>
-          {user && (
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          )}
         </div>
 
         {/* Mobile Navigation */}
@@ -159,24 +163,7 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px]">
               <div className="flex flex-col gap-4 mt-4">
-                {isHomePage && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search tasks..."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      className="pl-9"
-                    />
-                  </div>
-                )}
                 <MainNavLinks />
-                {user && (
-                  <Button variant="outline" onClick={handleSignOut}>
-                    Sign Out
-                  </Button>
-                )}
               </div>
             </SheetContent>
           </Sheet>

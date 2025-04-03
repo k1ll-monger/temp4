@@ -49,12 +49,6 @@ const LandingPage = () => {
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <Button variant="ghost" onClick={handleLeaderboardClick}>
-                  <Trophy size={20} />
-                  Leaderboard
-                </Button>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <Button variant="ghost" onClick={handleLoginClick}>
                   Login
                 </Button>

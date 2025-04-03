@@ -284,7 +284,7 @@ const Task = () => {
                 <TabsTrigger value="completed">Completed Tasks</TabsTrigger>
                 {hasPendingRequests && (
                   <TabsTrigger value="requests" className="relative">
-                    Requests
+                   Requests
                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                       {taskApplications.length + taskJointRequests.length}
                     </span>
