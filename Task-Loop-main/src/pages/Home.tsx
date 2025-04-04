@@ -139,12 +139,6 @@ const Home = () => {
             Create Task
           </Button>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <Button variant="outline">Active Tasks</Button>
-          <Button variant="outline">Applied Tasks</Button>
-          <Button variant="outline">Created Tasks</Button>
-          <Button variant="outline">Completed Tasks</Button>
-        </div>
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <Label htmlFor="search">Search Tasks</Label>
