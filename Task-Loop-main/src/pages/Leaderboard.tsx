@@ -33,23 +33,7 @@ const topDoers = [
 ];
 
 const Leaderboard = () => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    try {
-      const localSession = localStorage.getItem('taskloop_session');
-      const isAuthenticated = localSession ? JSON.parse(localSession).isAuthenticated : false;
-
-      if (!isAuthenticated) {
-        navigate('/login'); // Redirect to login if not authenticated
-      }
-    } catch (error) {
-      console.error('Error parsing session data:', error);
-      navigate('/login');
-    }
-  }, [navigate]);
-
-  const getAvatar = (avatar: string, name: string) => 
+  const getAvatar = (avatar: string, name: string) =>
     avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
   return (

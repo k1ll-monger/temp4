@@ -48,7 +48,16 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
+
+            {/* Protected routes */}
+            <Route
+              path="/leaderboard"
+              element={
+                <ProtectedRoute>
+                  <Leaderboard />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Protected routes with layout */}
             <Route element={<Layout />}>
