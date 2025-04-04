@@ -150,7 +150,7 @@ const Signup = () => {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="johndoe"
+                  placeholder="Username"
                   className="input-dark"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}

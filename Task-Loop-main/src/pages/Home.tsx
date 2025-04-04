@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import TaskCard from '@/components/TaskCard';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Calendar, Clock, IndianRupee } from 'lucide-react';
+import { Search, MapPin, Calendar, Clock, IndianRupee, Plus } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -134,7 +134,10 @@ const Home = () => {
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <h1 className="text-3xl font-bold">Available Tasks</h1>
-          <Button onClick={() => navigate('/create-task')}>Create Task</Button>
+          <Button onClick={() => navigate('/create-task')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Task
+          </Button>
         </div>
         <div className="flex flex-wrap gap-4">
           <Button variant="outline">Active Tasks</Button>

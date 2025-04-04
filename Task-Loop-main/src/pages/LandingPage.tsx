@@ -6,7 +6,8 @@ import {
   NavigationMenuList,
   NavigationMenuItem,
 } from "@/components/ui/navigation-menu";
-import { Trophy } from 'lucide-react';
+import { LogIn } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -50,12 +51,14 @@ const LandingPage = () => {
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <Button variant="ghost" onClick={handleLoginClick}>
+                <Button variant="ghost" onClick={handleLoginClick} className="flex items-center">
+                  <LogIn className="mr-2 h-4 w-4" />
                   Login
                 </Button>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Button variant="ghost" onClick={handleStartClick}>
+                <Button variant="ghost" onClick={handleStartClick} className="flex items-center">
+                  <UserPlus className="mr-2 h-4 w-4" />
                   Register
                 </Button>
               </NavigationMenuItem>
