@@ -52,7 +52,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
     }
   };
 
-  // Get user name for avatar
   const getUserInitials = (): string => {
     if (user?.user_metadata?.name) {
       return user.user_metadata.name.substring(0, 2).toUpperCase();
@@ -60,7 +59,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
     return 'U';
   };
 
-  // Different menu items based on whether it's the landing page or not
   const MainNavLinks = () => {
     if (isLandingPage) {
       return (
@@ -94,12 +92,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/create-task" className={navigationMenuTriggerStyle()}>
-            <FileText className="mr-2 h-4 w-4" />
-            Create Task
-          </Link>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
           <Link to="/leaderboard" className={navigationMenuTriggerStyle()}>
             <Trophy className="mr-2 h-4 w-4" />
             Leaderboard
@@ -109,12 +101,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           <Link to="/chat" className={navigationMenuTriggerStyle()}>
             <MessageSquare className="mr-2 h-4 w-4" />
             Chat
-          </Link>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
-          <Link to="/history" className={navigationMenuTriggerStyle()}>
-            <Calendar className="mr-2 h-4 w-4" />
-            History
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
@@ -136,11 +122,12 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
   return (
     <nav className="border-b bg-background">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-primary">
-          Task Loop
-        </Link>
-
-        {/* Desktop Navigation */}
+        <div className="flex items-center gap-2">
+            <img src="/images/logo.png" alt="Task Loop Logo" className="h-12 w-12" />
+            <span className="text-xl font-bold text-primary">
+            Task Loop
+            </span>
+        </div>
         <div className="hidden md:flex items-center gap-4">
           <NavigationMenu>
             <NavigationMenuList>
@@ -148,8 +135,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
             </NavigationMenuList>
           </NavigationMenu>
         </div>
-
-        {/* Mobile Navigation */}
         <div className="md:hidden">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>

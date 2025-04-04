@@ -31,7 +31,7 @@ const LandingPage = () => {
       {/* Background Image */}
       <div className="absolute inset-0 w-full h-full z-0">
         <img 
-          src="/lovable-uploads/c6597f0c-b261-4ae1-b452-a1879fbec2ec.png" 
+          src="/images/c6597f0c-b261-4ae1-b452-a1879fbec2ec.png" 
           alt="Background" 
           className="w-full h-full object-cover"
         />
@@ -41,9 +41,10 @@ const LandingPage = () => {
       <header className="border-b bg-background/80 backdrop-blur-sm relative z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link to="/" className="text-xl font-bold">
+          <img src="/images/logo.png" alt="Task Loop Logo" className="h-12 w-12" />
+            <div className="text-xl font-bold">
               TaskLoop
-            </Link>
+            </div>
           </div>
           
           <NavigationMenu>

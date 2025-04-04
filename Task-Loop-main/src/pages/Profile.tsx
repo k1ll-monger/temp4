@@ -472,12 +472,6 @@ const Profile = () => {
             <TabsContent value="tasks" className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Your Active Tasks ({activeTasks.length})</h3>
-                <Button
-                  className={cn(buttonVariants({ variant: "default" }))}
-                  onClick={() => navigate('/create-task')}
-                >
-                  Create New Task
-                </Button>
               </div>
               {loadingTasks ? (
                 <div className="flex items-center justify-center py-8">

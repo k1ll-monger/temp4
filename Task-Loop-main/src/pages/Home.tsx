@@ -51,7 +51,6 @@ const Home = () => {
         .eq('status', statusFilter)
         .order('created_at', { ascending: false });
 
-      // Apply filters if they exist
       if (searchQuery) {
         query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
       }
@@ -62,7 +61,6 @@ const Home = () => {
         query = query.eq('task_type', taskTypeFilter);
       }
 
-      // Apply sorting
       switch (sortBy) {
         case 'newest':
           query = query.order('created_at', { ascending: false });
@@ -138,14 +136,12 @@ const Home = () => {
           <h1 className="text-3xl font-bold">Available Tasks</h1>
           <Button onClick={() => navigate('/create-task')}>Create Task</Button>
         </div>
-
         <div className="flex flex-wrap gap-4">
           <Button variant="outline">Active Tasks</Button>
           <Button variant="outline">Applied Tasks</Button>
           <Button variant="outline">Created Tasks</Button>
           <Button variant="outline">Completed Tasks</Button>
         </div>
-
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <Label htmlFor="search">Search Tasks</Label>
@@ -172,7 +168,6 @@ const Home = () => {
               </SelectContent>
             </Select>
           </div>
-
           <div className="w-full md:w-48">
             <Label htmlFor="location">Location</Label>
             <Select value={locationFilter} onValueChange={(value) => handleFilterChange(value, 'location')}>
@@ -189,7 +184,6 @@ const Home = () => {
               </SelectContent>
             </Select>
           </div>
-
           <div className="w-full md:w-48">
             <Label htmlFor="taskType">Task Type</Label>
             <Select value={taskTypeFilter} onValueChange={(value) => handleFilterChange(value, 'taskType')}>
@@ -203,7 +197,6 @@ const Home = () => {
               </SelectContent>
             </Select>
           </div>
-
           <div className="w-full md:w-48">
             <Label htmlFor="sort">Sort By</Label>
             <Select value={sortBy} onValueChange={(value) => handleFilterChange(value, 'sort')}>
@@ -221,7 +214,6 @@ const Home = () => {
             </Select>
           </div>
         </form>
-
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
