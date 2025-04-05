@@ -465,8 +465,7 @@ const Profile = () => {
         <div className="md:col-span-2">
           <Tabs defaultValue="tasks">
             <TabsList>
-              <TabsTrigger value="tasks">Active Tasks</TabsTrigger>
-              <TabsTrigger value="stats">Statistics</TabsTrigger>
+              {/* Removed the Active Tasks button */}
             </TabsList>
             
             <TabsContent value="tasks" className="mt-4">
@@ -505,50 +504,6 @@ const Profile = () => {
                   ))}
                 </div>
               )}
-            </TabsContent>
-            
-            <TabsContent value="stats" className="mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Tasks Created</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">12</div>
-                    <p className="text-xs text-muted-foreground">All time</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Tasks Completed</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">8</div>
-                    <p className="text-xs text-muted-foreground">As a doer</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Total Rewards Earned</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">₹4,500</div>
-                    <p className="text-xs text-muted-foreground">As a doer</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Total Rewards Paid</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">₹7,200</div>
-                    <p className="text-xs text-muted-foreground">As a requestor</p>
-                  </CardContent>
-                </Card>
-              </div>
             </TabsContent>
           </Tabs>
         </div>
