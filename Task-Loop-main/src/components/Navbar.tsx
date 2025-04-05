@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Trophy, Home, User, Menu, X, MessageSquare, Calendar, FileText, Bell } from 'lucide-react';
+import { Search, Trophy, Home, User, Menu, X, MessageSquare, Calendar, FileText, Bell, ClipboardCheck, PlusCircle, LogOut } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,12 @@ import {
   NavigationMenuLink,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -64,12 +70,6 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
       return (
         <>
           <NavigationMenuItem>
-            <Link to="/leaderboard" className={navigationMenuTriggerStyle()}>
-              <Trophy className="mr-2 h-4 w-4" />
-              Leaderboard
-            </Link>
-          </NavigationMenuItem>
-          <NavigationMenuItem>
             <Link to="/login" className={navigationMenuTriggerStyle()}>
               Login
             </Link>
@@ -92,27 +92,15 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/leaderboard" className={navigationMenuTriggerStyle()}>
-            <Trophy className="mr-2 h-4 w-4" />
-            Leaderboard
-          </Link>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
-          <Link to="/chat" className={navigationMenuTriggerStyle()}>
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Chat
-          </Link>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
-          <Link to="/task" className={navigationMenuTriggerStyle()}>
+          <Link to="/notifications" className={navigationMenuTriggerStyle()}>
             <Bell className="mr-2 h-4 w-4" />
             Notifications
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/profile" className={navigationMenuTriggerStyle()}>
-            <User className="mr-2 h-4 w-4" />
-            Profile
+          <Link to="/create-task" className={navigationMenuTriggerStyle()}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create Task
           </Link>
         </NavigationMenuItem>
       </>
@@ -134,6 +122,33 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
               <MainNavLinks />
             </NavigationMenuList>
           </NavigationMenu>
+          
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.user_metadata?.avatar_url} />
+                    <AvatarFallback>
+                      {user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 cursor-pointer">
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         <div className="md:hidden">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -149,6 +164,28 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
             <SheetContent side="right" className="w-[300px]">
               <div className="flex flex-col gap-4 mt-4">
                 <MainNavLinks />
+                {user && (
+                  <>
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <User className="h-4 w-4" />
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md w-full text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>

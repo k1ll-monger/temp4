@@ -8,10 +8,9 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import LandingPage from "./pages/LandingPage";
-import Leaderboard from "./pages/Leaderboard";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
-import Task from "./pages/Task";
+import Tasks from "./pages/Tasks";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -49,16 +48,6 @@ const App = () => {
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/leaderboard"
-              element={
-                <ProtectedRoute>
-                  <Leaderboard />
-                </ProtectedRoute>
-              }
-            />
-
             {/* Protected routes with layout */}
             <Route element={<Layout />}>
               <Route
@@ -94,10 +83,10 @@ const App = () => {
                 }
               />
               <Route
-                path="/task"
+                path="/tasks"
                 element={
                   <ProtectedRoute>
-                    <Task />
+                    <Tasks />
                   </ProtectedRoute>
                 }
               />
@@ -118,8 +107,6 @@ const App = () => {
                 }
               />
             </Route>
-            
-            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
       </TooltipProvider>
