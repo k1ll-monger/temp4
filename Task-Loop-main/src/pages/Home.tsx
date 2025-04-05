@@ -32,8 +32,6 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
-  const [taskTypeFilter, setTaskTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
   const [sortBy, setSortBy] = useState('newest');
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -48,7 +46,7 @@ const Home = () => {
       let query = supabase
         .from('tasks')
         .select('*')
-        .eq('status', statusFilter)
+        .eq('status', 'active') // Only fetch active tasks
         .order('created_at', { ascending: false });
 
       if (searchQuery) {
@@ -57,9 +55,6 @@ const Home = () => {
       if (locationFilter && locationFilter !== 'all') {
         query = query.eq('location', locationFilter);
       }
-      if (taskTypeFilter && taskTypeFilter !== 'all') {
-        query = query.eq('task_type', taskTypeFilter);
-      }
 
       switch (sortBy) {
         case 'newest':
@@ -67,18 +62,6 @@ const Home = () => {
           break;
         case 'oldest':
           query = query.order('created_at', { ascending: true });
-          break;
-        case 'highest_reward':
-          query = query.order('reward', { ascending: false });
-          break;
-        case 'lowest_reward':
-          query = query.order('reward', { ascending: true });
-          break;
-        case 'deadline_soonest':
-          query = query.order('deadline', { ascending: true });
-          break;
-        case 'deadline_latest':
-          query = query.order('deadline', { ascending: false });
           break;
       }
 
@@ -103,19 +86,13 @@ const Home = () => {
     fetchTasks();
   };
 
-  const handleFilterChange = (value: string, type: 'location' | 'taskType' | 'sort' | 'status') => {
+  const handleFilterChange = (value: string, type: 'location' | 'sort') => {
     switch (type) {
       case 'location':
         setLocationFilter(value);
         break;
-      case 'taskType':
-        setTaskTypeFilter(value);
-        break;
       case 'sort':
         setSortBy(value);
-        break;
-      case 'status':
-        setStatusFilter(value);
         break;
     }
     fetchTasks();
@@ -154,18 +131,6 @@ const Home = () => {
             </div>
           </div>
           <div className="w-full md:w-48">
-            <Label htmlFor="status">Status</Label>
-            <Select value={statusFilter} onValueChange={(value) => handleFilterChange(value, 'status')}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full md:w-48">
             <Label htmlFor="location">Location</Label>
             <Select value={locationFilter} onValueChange={(value) => handleFilterChange(value, 'location')}>
               <SelectTrigger>
@@ -182,19 +147,6 @@ const Home = () => {
             </Select>
           </div>
           <div className="w-full md:w-48">
-            <Label htmlFor="taskType">Task Type</Label>
-            <Select value={taskTypeFilter} onValueChange={(value) => handleFilterChange(value, 'taskType')}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="joint">Joint</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full md:w-48">
             <Label htmlFor="sort">Sort By</Label>
             <Select value={sortBy} onValueChange={(value) => handleFilterChange(value, 'sort')}>
               <SelectTrigger>
@@ -203,10 +155,6 @@ const Home = () => {
               <SelectContent>
                 <SelectItem value="newest">Newest First</SelectItem>
                 <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="highest_reward">Highest Reward</SelectItem>
-                <SelectItem value="lowest_reward">Lowest Reward</SelectItem>
-                <SelectItem value="deadline_soonest">Deadline Soonest</SelectItem>
-                <SelectItem value="deadline_latest">Deadline Latest</SelectItem>
               </SelectContent>
             </Select>
           </div>

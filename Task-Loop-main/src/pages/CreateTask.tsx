@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
@@ -19,7 +18,6 @@ interface TaskFormData {
   location: string;
   reward: string;
   deadline: Date | null;
-  task_type: 'normal' | 'joint';
 }
 
 const CreateTask = () => {
@@ -32,7 +30,6 @@ const CreateTask = () => {
     location: '',
     reward: '',
     deadline: null,
-    task_type: 'normal'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -72,7 +69,6 @@ const CreateTask = () => {
             location: formData.location,
             reward: parseFloat(formData.reward),
             deadline: formData.deadline?.toISOString(),
-            task_type: formData.task_type,
             status: 'active',
             creator_id: user.id,
             creator_name: profile.username,
@@ -186,24 +182,6 @@ const CreateTask = () => {
             </Popover>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="task_type">Task Type</Label>
-            <Select
-              value={formData.task_type}
-              onValueChange={(value: 'normal' | 'joint') => 
-                setFormData(prev => ({ ...prev, task_type: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select task type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="joint">Joint</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="flex gap-4">
             <Button
               type="submit"
@@ -227,4 +205,4 @@ const CreateTask = () => {
   );
 };
 
-export default CreateTask; 
+export default CreateTask;
