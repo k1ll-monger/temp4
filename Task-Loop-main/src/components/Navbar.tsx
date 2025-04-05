@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Trophy, Home, User, Menu, X, MessageSquare, Calendar, FileText, Bell, ClipboardCheck, PlusCircle, LogOut } from 'lucide-react';
+import { Search, Trophy, Home, User, Menu, X, MessageSquare, Calendar, FileText, Bell, ClipboardCheck, PlusCircle, LogOut, ClipboardList } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -98,6 +98,12 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
+          <Link to="/applications" className={navigationMenuTriggerStyle()}>
+            <ClipboardList className="mr-2 h-4 w-4" />
+            Applications
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
           <Link to="/chat" className={navigationMenuTriggerStyle()}>
             <MessageSquare className="mr-2 h-4 w-4" />
             Chat
@@ -172,6 +178,14 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
                 <MainNavLinks />
                 {user && (
                   <>
+                    <Link
+                      to="/applications"
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Applications
+                    </Link>
                     <Link
                       to="/chat"
                       className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"

@@ -17,6 +17,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import CreateTask from "./pages/CreateTask";
 import Notifications from "./pages/Notifications";
+import Applications from "./pages/Applications";
 import { useAuth } from '@/hooks/useAuth';
 
 const queryClient = new QueryClient();
@@ -113,6 +114,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <History />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/applications"
+                element={
+                  <ProtectedRoute>
+                    <Applications />
                   </ProtectedRoute>
                 }
               />

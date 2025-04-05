@@ -125,7 +125,9 @@ const TaskApplications = ({ taskId, isOpen, onOpenChange }: TaskApplicationsProp
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold">{application.applicant_name}</h3>
+                    <h3 className="font-semibold">
+                      {application.applicant_name || "Anonymous Applicant"}
+                    </h3>
                     <p className="text-sm text-muted-foreground">{application.applicant_email}</p>
                     {application.applicant_phone && (
                       <p className="text-sm text-muted-foreground">{application.applicant_phone}</p>

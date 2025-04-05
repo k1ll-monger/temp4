@@ -280,8 +280,7 @@ export default function Chat() {
         ...data,
         sender: {
           id: currentUser.id,
-          username: currentUser.username,
-          avatar_url: currentUser.avatar_url
+          username: currentUser.username
         }
       };
       

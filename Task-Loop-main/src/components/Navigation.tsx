@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { Home, Bell, MessageSquare, User } from 'lucide-react';
+import { Home, Bell, MessageSquare, User, ClipboardList } from 'lucide-react';
 
 const navigation = [
   {
@@ -12,6 +12,11 @@ const navigation = [
     icon: Bell,
     label: 'Notifications',
     href: '/notifications',
+  },
+  {
+    icon: ClipboardList,
+    label: 'Applications',
+    href: '/applications',
   },
   {
     icon: MessageSquare,

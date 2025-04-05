@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import TaskApplications from './TaskApplications';
 import { useAuth } from '@/hooks/useAuth';
 
-interface TaskCardProps {
+export interface TaskCardProps {
   task: {
     id: string;
     title: string;
@@ -34,6 +34,7 @@ interface TaskCardProps {
   };
   isOwner?: boolean;
   isCompleted?: boolean;
+  isCreator?: boolean;
   onCancel?: (taskId: string) => void;
   onEdit?: (task: TaskType) => void;
   onDelete?: (taskId: string) => void;
@@ -51,6 +52,7 @@ const TaskCard = ({
   task, 
   isOwner = false, 
   isCompleted = false,
+  isCreator = false,
   onCancel,
   onEdit,
   onDelete,
@@ -86,9 +88,10 @@ const TaskCard = ({
     phone: '',
     proposal: ''
   });
+  const [userRating, setUserRating] = useState<number | null>(null);
 
-  // Check if the user is the creator of the task
-  const isCreator = user?.id === task.creatorId;
+  // Check if the user is the creator of the task (use prop if provided)
+  const userIsCreator = isCreator || user?.id === task.creatorId;
 
   // Fetch user profile when dialog opens
   useEffect(() => {
@@ -118,6 +121,39 @@ const TaskCard = ({
       fetchUserProfile();
     }
   }, [isApplyDialogOpen, user]);
+
+  // Fetch ratings when details dialog opens
+  useEffect(() => {
+    if (isDetailsDialogOpen && task.creatorId) {
+      const fetchRatings = async () => {
+        try {
+          // Check if the user_ratings table exists
+          const { data: ratingsData, error: ratingsError } = await supabase
+            .from('user_ratings')
+            .select('rating')
+            .eq('rated_user_id', task.creatorId);
+            
+          if (ratingsError) {
+            console.error('Error fetching ratings:', ratingsError);
+            return;
+          }
+          
+          // Calculate average rating if ratings exist
+          if (ratingsData && ratingsData.length > 0) {
+            const totalRating = ratingsData.reduce((sum, item) => sum + item.rating, 0);
+            const averageRating = totalRating / ratingsData.length;
+            setUserRating(averageRating);
+          } else {
+            setUserRating(null);
+          }
+        } catch (error) {
+          console.error('Error processing ratings:', error);
+        }
+      };
+      
+      fetchRatings();
+    }
+  }, [isDetailsDialogOpen, task.creatorId]);
 
   const handleCancel = () => {
     if (onCancel) {
@@ -286,35 +322,61 @@ const TaskCard = ({
 
   return (
     <>
-      <Card className="w-full hover:shadow-lg transition-shadow duration-200">
+      <Card 
+        className="w-full transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/50 group cursor-pointer"
+        onClick={() => setIsDetailsDialogOpen(true)}
+      >
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-xl font-semibold">{task.title}</CardTitle>
+              <CardTitle className="text-xl font-semibold group-hover:text-primary transition-colors">{task.title}</CardTitle>
               <CardDescription className="mt-2 line-clamp-2">{task.description}</CardDescription>
             </div>
-            <Badge variant={statusInfo.variant} className="ml-2">
+            <Badge variant={statusInfo.variant} className="ml-2 transition-transform group-hover:scale-110">
               {statusInfo.text}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span className="text-sm">{task.location}</span>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-4 w-4 group-hover:text-primary transition-colors" />
+                <span className="text-sm font-medium group-hover:text-primary transition-colors">Posted by: {task.creatorName}</span>
+                {task.creatorRating ? (
+                  <div className="flex items-center">
+                    <Star className="h-3 w-3 text-yellow-500 fill-current group-hover:scale-110 transition-transform" />
+                    <span className="text-xs ml-1">{task.creatorRating.toFixed(1)}</span>
+                  </div>
+                ) : userRating ? (
+                  <div className="flex items-center">
+                    <Star className="h-3 w-3 text-yellow-500 fill-current group-hover:scale-110 transition-transform" />
+                    <span className="text-xs ml-1">{userRating.toFixed(1)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <Star className="h-3 w-3 text-yellow-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs ml-1">N/A</span>
+                  </div>
+                )}
+              </div>
+              <Badge variant={statusInfo.variant} className="md:hidden">
+                {statusInfo.text}
+              </Badge>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <DollarSign className="h-4 w-4" />
-              <span className="text-sm font-medium">₹{task.reward}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm">{format(task.deadline, 'PPP')}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="text-sm">{task.creatorName}</span>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                <span className="text-sm">{task.location}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                <span className="text-sm font-medium">{task.reward ? `₹${task.reward}` : 'No reward'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                <Calendar className="h-4 w-4 group-hover:text-primary transition-colors" />
+                <span className="text-sm">{format(task.deadline, 'PPP')}</span>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -323,18 +385,42 @@ const TaskCard = ({
             <div className="flex gap-2">
               {task.status === 'active' && (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => onEdit?.(task)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      onEdit?.(task); 
+                    }}
+                    className="transition-all hover:bg-primary/10 hover:border-primary"
+                  >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => onDelete?.(task.id)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      onDelete?.(task.id); 
+                    }}
+                    className="transition-all hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                  >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
                   </Button>
                 </>
               )}
               {task.status === 'assigned' && (
-                <Button variant="outline" size="sm" onClick={() => onCancel?.(task.id)}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    onCancel?.(task.id); 
+                  }}
+                  className="transition-all hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                >
                   <X className="h-4 w-4 mr-2" />
                   Cancel Assignment
                 </Button>
@@ -342,19 +428,43 @@ const TaskCard = ({
             </div>
           ) : (
             <div className="flex gap-2">
-              {task.status === 'active' && !isCreator && onApply && (
-                <Button variant="default" size="sm" onClick={() => setIsApplyDialogOpen(true)}>
+              {task.status === 'active' && !userIsCreator && onApply && (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setIsApplyDialogOpen(true); 
+                  }}
+                  className="transition-all hover:shadow-md hover:shadow-primary/20 hover:scale-105"
+                >
                   <Send className="h-4 w-4 mr-2" />
                   Apply
                 </Button>
               )}
-              {task.status === 'active' && !isCreator && task.taskType === 'joint' && (
-                <Button variant="outline" size="sm" onClick={() => setIsJoinJointDialogOpen(true)}>
+              {task.status === 'active' && !userIsCreator && task.taskType === 'joint' && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setIsJoinJointDialogOpen(true); 
+                  }}
+                  className="transition-all hover:bg-secondary/80 hover:border-primary/50"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Join
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => setIsDetailsDialogOpen(true)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsDetailsDialogOpen(true); 
+                }}
+                className="transition-all hover:bg-secondary/80 hover:border-primary/50"
+              >
                 <Eye className="h-4 w-4 mr-2" />
                 View Details
               </Button>
@@ -364,36 +474,37 @@ const TaskCard = ({
       </Card>
 
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] border border-primary/20 shadow-lg">
           <DialogHeader>
-            <DialogTitle>{task.title}</DialogTitle>
+            <DialogTitle className="text-xl text-primary">{task.title}</DialogTitle>
             <DialogDescription className="flex items-center mt-2">
               <Badge variant={statusInfo.variant} className="mr-2">
                 {statusInfo.text}
               </Badge>
-              <span className="font-bold">₹{task.reward}</span>
+              <span className="font-bold text-lg">₹{task.reward}</span>
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <p>{task.description}</p>
+            <p className="text-foreground/90">{task.description}</p>
             
             <div className="flex items-center text-sm">
-              <MapPin className="h-4 w-4 mr-2" />
+              <MapPin className="h-4 w-4 mr-2 text-primary" />
               <span>{task.location}</span>
             </div>
             
             <div className="flex items-center text-sm">
-              <CalendarClock className="h-4 w-4 mr-2" />
+              <CalendarClock className="h-4 w-4 mr-2 text-primary" />
               <span>Due: {format(new Date(task.deadline), 'MMM d, yyyy')} at {format(new Date(task.deadline), 'h:mm a')}</span>
             </div>
             
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-border pt-4">
               <div className="flex items-center text-sm">
+                <User className="h-4 w-4 mr-2 text-primary" />
                 <span className="font-medium mr-2">Posted by:</span> 
                 {task.creatorName}
                 <span className="flex items-center ml-2">
-                  <span className="text-yellow-500 font-medium">{task.creatorRating?.toFixed(1) || 'N/A'}</span>
+                  <span className="text-yellow-500 font-medium">{task.creatorRating?.toFixed(1) || userRating?.toFixed(1) || 'N/A'}</span>
                   <Star className="h-4 w-4 text-yellow-500 ml-1" fill="currentColor" />
                 </span>
               </div>
@@ -404,47 +515,47 @@ const TaskCard = ({
             <Button 
               variant="outline" 
               onClick={handleAddToChat} 
-              className="flex items-center"
+              className="flex items-center transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
             >
               <MessageCircle className="h-4 w-4 mr-2" />
               Message
             </Button>
             
-            {task.taskType === 'joint' ? (
+            {task.taskType === 'joint' && !userIsCreator ? (
               <div className="flex space-x-2">
                 <Button 
                   variant="outline" 
                   onClick={() => setIsJoinJointDialogOpen(true)} 
-                  className="flex items-center"
+                  className="flex items-center transition-all hover:bg-primary/10 hover:border-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
                 <Button 
                   onClick={() => setIsApplyDialogOpen(true)}
-                  className="flex items-center"
+                  className="flex items-center transition-all hover:shadow-md hover:shadow-primary/20 hover:scale-105"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Join
                 </Button>
               </div>
-            ) : (
+            ) : !userIsCreator ? (
               <Button 
                 onClick={() => setIsApplyDialogOpen(true)}
-                className="flex items-center"
+                className="flex items-center transition-all hover:shadow-md hover:shadow-primary/20 hover:scale-105"
               >
                 <Send className="h-4 w-4 mr-2" />
                 Apply
               </Button>
-            )}
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
       <Dialog open={isApplyDialogOpen} onOpenChange={setIsApplyDialogOpen}>
-        <DialogContent>
+        <DialogContent className="border border-primary/20 shadow-lg">
           <DialogHeader>
-            <DialogTitle>Apply for Task</DialogTitle>
+            <DialogTitle className="text-xl text-primary">Apply for Task</DialogTitle>
             <DialogDescription>
               Fill out the form below to apply for this task.
             </DialogDescription>
@@ -452,16 +563,17 @@ const TaskCard = ({
           <form onSubmit={handleApplySubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-foreground/80">Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  className="border-primary/20 focus-visible:ring-primary/30"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-foreground/80">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -469,40 +581,47 @@ const TaskCard = ({
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                   disabled
+                  className="border-primary/20"
                 />
                 <p className="text-xs text-muted-foreground">Your registered email will be used.</p>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">Phone (Optional)</Label>
+                <Label htmlFor="phone" className="text-foreground/80">Phone (Optional)</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="border-primary/20 focus-visible:ring-primary/30"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="proposal">Proposal</Label>
+                <Label htmlFor="proposal" className="text-foreground/80">Proposal</Label>
                 <Textarea
                   id="proposal"
                   value={formData.proposal}
                   onChange={(e) => setFormData({ ...formData, proposal: e.target.value })}
+                  placeholder="Explain why you're the right person for this task..."
                   required
-                  placeholder="Explain why you're a good fit for this task..."
+                  className="border-primary/20 focus-visible:ring-primary/30 min-h-[100px]"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsApplyDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="transition-all hover:shadow-md hover:shadow-primary/20"
+              >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Submitting...
                   </>
                 ) : (
-                  'Submit Application'
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Submit Application
+                  </>
                 )}
               </Button>
             </DialogFooter>
@@ -511,79 +630,88 @@ const TaskCard = ({
       </Dialog>
       
       <Dialog open={isJoinJointDialogOpen} onOpenChange={setIsJoinJointDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px] border border-primary/20 shadow-lg">
           <DialogHeader>
-            <DialogTitle>Join as Task Requestor</DialogTitle>
+            <DialogTitle className="text-xl text-primary">Join Joint Task</DialogTitle>
             <DialogDescription>
-              Describe what you need help with and how much you're willing to pay.
+              Describe what you can contribute to this task.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="joint-task-needs">What do you need?</Label>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="needs" className="text-foreground/80">Description</Label>
               <Textarea 
-                id="joint-task-needs" 
-                placeholder="Describe what you need help with..."
+                id="needs" 
+                placeholder="I can help with..."
                 value={jointTaskNeeds}
                 onChange={(e) => setJointTaskNeeds(e.target.value)}
-                rows={4}
+                className="col-span-3 border-primary/20 focus-visible:ring-primary/30 min-h-[100px]"
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="joint-task-reward">Reward (₹)</Label>
-              <Input 
-                id="joint-task-reward" 
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="reward" className="text-foreground/80">Reward Split</Label>
+              <Input
+                id="reward"
                 type="number"
-                min="1"
+                min={0}
+                max={1000}
                 value={jointTaskReward}
-                onChange={(e) => setJointTaskReward(parseInt(e.target.value))}
+                onChange={(e) => setJointTaskReward(Number(e.target.value))}
+                className="col-span-3 border-primary/20 focus-visible:ring-primary/30"
               />
             </div>
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsJoinJointDialogOpen(false)}>Cancel</Button>
             <Button 
-              onClick={handleJoinJointTask} 
-              disabled={!jointTaskNeeds.trim() || jointTaskReward <= 0}
+              onClick={handleJoinJointTask}
+              className="transition-all hover:shadow-md hover:shadow-primary/20 hover:scale-105"
             >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Submit Request
+              <Plus className="h-4 w-4 mr-2" />
+              Join Task
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      
       <Dialog open={isCompleteConfirmationOpen} onOpenChange={setIsCompleteConfirmationOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="border border-primary/20 shadow-lg">
           <DialogHeader>
-            <DialogTitle>Mark Task as Completed</DialogTitle>
+            <DialogTitle className="text-xl text-primary">Confirm Completion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to mark this task as completed? This action cannot be undone.
+              Are you sure you want to mark this task as complete?
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p className="font-medium">{task.title}</p>
-            <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCompleteConfirmationOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCompleteConfirmationOpen(false)}
+              className="transition-all hover:bg-secondary/80"
+            >
               Cancel
             </Button>
             <Button 
-              variant="secondary" 
-              onClick={() => {
-                handleCloseTask();
-                setIsCompleteConfirmationOpen(false);
-              }}
+              onClick={handleCloseTask}
+              className="transition-all hover:bg-primary/90 hover:shadow-sm hover:shadow-primary/20"
             >
-              Confirm
+              Mark as Complete
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {isApplicationsDialogOpen && (
+        <Dialog open={isApplicationsDialogOpen} onOpenChange={setIsApplicationsDialogOpen}>
+          <DialogContent className="max-w-4xl border border-primary/20 shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl text-primary">Applications for {task.title}</DialogTitle>
+              <DialogDescription>
+                Review and manage applications for this task.
+              </DialogDescription>
+            </DialogHeader>
+            <TaskApplications taskId={task.id} onStatusChange={onStatusChange} />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
