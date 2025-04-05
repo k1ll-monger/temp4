@@ -16,19 +16,63 @@ const Signup = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const validatePassword = (password: string) => {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return "Password must contain at least one special character";
+    }
+    return "";
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    setPasswordError(validatePassword(newPassword));
+    
+    // Also check if confirm password matches
+    if (confirmPassword && newPassword !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match");
+    } else {
+      setConfirmPasswordError("");
+    }
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newConfirmPassword = e.target.value;
+    setConfirmPassword(newConfirmPassword);
+    setConfirmPasswordError(newPassword !== newConfirmPassword ? "Passwords do not match" : "");
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    // Validate passwords
+    const passwordValidationError = validatePassword(password);
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
+      setLoading(false);
+      return;
+    }
+    
     if (password !== confirmPassword) {
-      toast({
-        title: "Password mismatch",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
+      setConfirmPasswordError("Passwords do not match");
       setLoading(false);
       return;
     }
@@ -181,9 +225,9 @@ const Signup = () => {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a password"
-                    className="input-dark"
+                    className={`input-dark ${passwordError ? "border-red-500" : ""}`}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     required
                   />
                   <button
@@ -194,6 +238,12 @@ const Signup = () => {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-sm text-red-500">{passwordError}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.
+                </p>
               </div>
 
               <div className="grid gap-1">
@@ -203,9 +253,9 @@ const Signup = () => {
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
-                    className="input-dark"
+                    className={`input-dark ${confirmPasswordError ? "border-red-500" : ""}`}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={handleConfirmPasswordChange}
                     required
                   />
                   <button
@@ -216,12 +266,15 @@ const Signup = () => {
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                {confirmPasswordError && (
+                  <p className="text-sm text-red-500">{confirmPasswordError}</p>
+                )}
               </div>
               
               <Button 
                 type="submit" 
                 className="w-full bg-primary hover:bg-primary/90" 
-                disabled={loading}
+                disabled={loading || !!passwordError || !!confirmPasswordError}
               >
                 {loading ? 'Creating account...' : 'Sign Up'}
               </Button>

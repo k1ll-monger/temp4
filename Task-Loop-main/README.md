@@ -1,69 +1,94 @@
-# Welcome to your Lovable project
+# Task Loop
 
-## Project info
+A task management application built with React, TypeScript, and Supabase.
 
-**URL**: https://lovable.dev/projects/51f77c8b-19e8-4235-9ee4-c4c55be21c09
+## Features
 
-## How can I edit this code?
+- User authentication
+- Task creation and management
+- Task applications and assignments
+- Notifications for task updates
+- Profile management
 
-There are several ways of editing your application.
+## Setup
 
-**Use Lovable**
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Create a `.env` file with your Supabase credentials:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/51f77c8b-19e8-4235-9ee4-c4c55be21c09) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-**Edit a file directly in GitHub**
+4. Run the development server with `npm run dev`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Database Setup
 
-**Use GitHub Codespaces**
+### Creating the Notifications Table
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The application requires a `notifications` table in your Supabase database. You can create it using the SQL script in `create_notifications_table.sql`:
 
-## What technologies are used for this project?
+1. Go to your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy the contents of `create_notifications_table.sql`
+4. Run the SQL script
 
-This project is built with .
+### Adding Required Task Columns
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+If you see an error about missing columns in the tasks table (like "Could not find the 'assigned_at' column"), you need to add these columns:
 
-## How can I deploy this project?
+1. Go to your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy the contents of `add_task_columns.sql`
+4. Run the SQL script
 
-Simply open [Lovable](https://lovable.dev/projects/51f77c8b-19e8-4235-9ee4-c4c55be21c09) and click on Share -> Publish.
+This script will:
+1. Add the `assigned_at` column if it doesn't exist
+2. Add the `assigned_to` column if it doesn't exist
+3. Update existing tasks to have null values for these columns
 
-## I want to use a custom domain - is that possible?
+### Fixing Task Applications Status
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+If you encounter an error like "violates check constraint task_applications_status_check" when trying to cancel an assignment, you need to fix the status column in the `task_applications` table:
+
+1. Go to your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy the contents of `fix_task_applications_status.sql`
+4. Run the SQL script
+
+This script will:
+1. Check if the status column is using an enum type or a check constraint
+2. If it's an enum type:
+   - Create a new enum type with all required values
+   - Migrate the data to use the new type
+   - Replace the old enum type with the new one
+3. If it's using a check constraint:
+   - Remove any existing status check constraints
+   - Add a new constraint that allows all required statuses
+
+## Troubleshooting
+
+### Missing Task Columns
+
+If you see an error like "Could not find the 'assigned_at' column of 'tasks'":
+
+1. Follow the instructions in the "Adding Required Task Columns" section above
+2. After running the fix, try the operation again
+3. If the issue persists, check the browser console for any specific error messages
+
+### Assignment Cancellation Issues
+
+If you see an error like "violates check constraint task_applications_status_check" when trying to cancel an assignment:
+
+1. Follow the instructions in the "Fixing Task Applications Status" section above
+2. After running the fix, try cancelling the assignment again
+3. If the issue persists, check the browser console for any specific error messages
+
+### Notifications Not Working
+
+If you see the error "Notifications table does not exist yet", you need to create the notifications table in your Supabase database as described in the "Creating the Notifications Table" section above.
+
+## License
+
+MIT

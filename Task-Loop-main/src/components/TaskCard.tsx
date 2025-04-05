@@ -95,19 +95,19 @@ const TaskCard = ({
     if (isApplyDialogOpen && user) {
       const fetchUserProfile = async () => {
         try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('username, email')
-            .eq('id', user.id)
+          const { data: creatorProfile, error: profileError } = await supabase
+            .from('users')
+            .select('username, rating')
+            .eq('id', task.creatorId)
             .single();
             
-          if (error) throw error;
+          if (profileError) throw profileError;
           
-          if (data) {
+          if (creatorProfile) {
             setFormData(prev => ({
               ...prev,
-              name: data.username || '',
-              email: data.email || ''
+              name: creatorProfile.username || '',
+              email: creatorProfile.email || ''
             }));
           }
         } catch (error) {

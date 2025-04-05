@@ -13,12 +13,34 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signIn } = useAuth();
 
+  const validatePassword = (password: string) => {
+    if (!password) {
+      return "Password is required";
+    }
+    return "";
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    setPasswordError(validatePassword(newPassword));
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate password
+    const passwordValidationError = validatePassword(password);
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -121,9 +143,9 @@ const Login = () => {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="input-dark"
+                    className={`input-dark ${passwordError ? "border-red-500" : ""}`}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     required
                   />
                   <button
@@ -134,6 +156,9 @@ const Login = () => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-sm text-red-500">{passwordError}</p>
+                )}
               </div>
               <div>
                 <Link to="/forgot-password" className="text-sm text-primary hover:underline">
@@ -144,7 +169,7 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-primary hover:bg-primary/90" 
-                disabled={loading}
+                disabled={loading || !!passwordError}
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>

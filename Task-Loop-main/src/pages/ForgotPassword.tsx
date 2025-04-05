@@ -1,227 +1,109 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, ArrowLeft } from 'lucide-react';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Link } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [step, setStep] = useState<'email' | 'otp' | 'newPassword'>('email');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
-  const handleSendResetLink = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !email.includes('@')) {
+    if (!email) {
       toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address",
+        title: "Error",
+        description: "Please enter your email address",
         variant: "destructive",
       });
       return;
     }
-    
-    toast({
-      title: "Reset Code Sent!",
-      description: `A verification code has been sent to ${email}`,
-    });
-    
-    setStep('otp');
-  };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (otp.length === 6) {
-      toast({
-        title: "Code Verified!",
-        description: "Please create a new password",
-      });
+    try {
+      setLoading(true);
       
-      setStep('newPassword');
-    } else {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setSubmitted(true);
       toast({
-        title: "Invalid Code",
-        description: "Please enter a valid 6-digit verification code",
+        title: "Success",
+        description: "Password reset instructions have been sent to your email",
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send reset instructions. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleResetPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure both passwords match",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (password.length < 8) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 8 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    toast({
-      title: "Password Reset Successfully!",
-      description: "You can now login with your new password",
-    });
-    
-    // Reset form state
-    setEmail('');
-    setOtp('');
-    setPassword('');
-    setConfirmPassword('');
-    setStep('email');
-    
-    // Redirect to login page
-    navigate('/login');
-  };
-
-  const handleOTPChange = (value: string) => {
-    setOtp(value);
-  };
-
-  const renderEmailStep = () => (
-    <form onSubmit={handleSendResetLink} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="example@iiitkottayam.ac.in"
-          className="input-dark"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full">
-        <Mail className="mr-2 h-4 w-4" />
-        Send Reset Code
-      </Button>
-    </form>
-  );
-
-  const renderOTPStep = () => (
-    <form onSubmit={handleVerifyOTP} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="otp">Verification Code</Label>
-        <p className="text-sm text-muted-foreground mb-2">
-          We've sent a 6-digit code to {email}
-        </p>
-        <div className="flex justify-center my-4">
-          <InputOTP maxLength={6} value={otp} onChange={handleOTPChange}>
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
-        </div>
-      </div>
-      <Button 
-        type="submit" 
-        className="w-full"
-        disabled={otp.length !== 6}
-      >
-        Verify Code
-      </Button>
-      <Button 
-        type="button" 
-        variant="outline" 
-        className="w-full"
-        onClick={() => setStep('email')}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Email
-      </Button>
-    </form>
-  );
-
-  const renderNewPasswordStep = () => (
-    <form onSubmit={handleResetPassword} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="password">New Password</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Must have at least 8 characters"
-          className="input-dark"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input
-          id="confirmPassword"
-          type="password"
-          placeholder="Confirm your new password"
-          className="input-dark"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full">
-        Reset Password
-      </Button>
-    </form>
-  );
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-background">
-      <div className="w-full text-center py-12">
-        <h1 className="text-5xl font-bold text-primary">TaskLoop</h1>
-      </div>
-
-      <div className="w-full max-w-md px-4 md:px-0">
-        <div className="border-border bg-card p-6 rounded-lg shadow-md space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-primary to-accent"></div>
-          
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold text-center">Reset Password</h2>
-            <p className="text-center text-muted-foreground text-sm">
-              {step === 'email' && "Enter your email to receive a reset code"}
-              {step === 'otp' && "Enter the verification code sent to your email"}
-              {step === 'newPassword' && "Create a new password for your account"}
-            </p>
-          </div>
-          
-          <div className="space-y-6">
-            {step === 'email' && renderEmailStep()}
-            {step === 'otp' && renderOTPStep()}
-            {step === 'newPassword' && renderNewPasswordStep()}
-            
-            <div className="text-center text-sm">
-              Remember your password?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Login
-              </Link>
+    <div className="container flex items-center justify-center min-h-screen py-12">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
+          <CardDescription>
+            Enter your email address and we'll send you instructions to reset your password.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {submitted ? (
+            <div className="text-center py-4">
+              <p className="mb-4">
+                Check your email for a password reset link. The link will expire in 24 hours.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                If you don't see the email, check your spam folder.
+              </p>
             </div>
-          </div>
-        </div>
-      </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Instructions'
+                )}
+              </Button>
+            </form>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Link to="/login" className="text-sm text-primary hover:underline">
+            Back to Login
+          </Link>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

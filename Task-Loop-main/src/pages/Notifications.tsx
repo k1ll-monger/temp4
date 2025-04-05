@@ -217,7 +217,9 @@ const Notifications = () => {
   const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
     try {
       const application = applications.find(app => app.id === applicationId);
-      if (!application) return;
+      if (!application) {
+        throw new Error('Application not found');
+      }
 
       // Update application status
       const { error: applicationError } = await supabase
@@ -229,6 +231,17 @@ const Notifications = () => {
 
       // If accepting, update task status to assigned
       if (action === 'accept' && application.task) {
+        // First, reject all other pending applications for this task
+        const { error: rejectError } = await supabase
+          .from('task_applications')
+          .update({ status: 'rejected' })
+          .eq('task_id', application.task.id)
+          .eq('status', 'pending')
+          .neq('id', applicationId);
+
+        if (rejectError) throw rejectError;
+
+        // Then update the task status
         const { error: taskError } = await supabase
           .from('tasks')
           .update({ 
@@ -240,8 +253,21 @@ const Notifications = () => {
 
         if (taskError) throw taskError;
 
-        // Try to create notification for applicant
+        // Create notification for applicant
         try {
+          // Check if notifications table exists first
+          const { error: tableCheckError } = await supabase
+            .from('notifications')
+            .select('id')
+            .limit(1);
+            
+          // If table doesn't exist, skip notification creation
+          if (tableCheckError && tableCheckError.code === '42P01') {
+            console.log('Notifications table does not exist yet, skipping notification creation');
+            return;
+          }
+          
+          // If table exists, create notification
           const { error: notificationError } = await supabase
             .from('notifications')
             .insert({
@@ -251,10 +277,11 @@ const Notifications = () => {
               type: 'success',
               read: false,
               related_id: application.task.id,
-              related_type: 'task'
+              related_type: 'task',
+              created_at: new Date().toISOString()
             });
 
-          if (notificationError && notificationError.code !== '42P01') {
+          if (notificationError) {
             console.error('Error creating notification:', notificationError);
           }
         } catch (notificationError: any) {
@@ -287,30 +314,59 @@ const Notifications = () => {
     if (!selectedApplication) return;
 
     try {
+      console.log('Cancelling assignment for application:', selectedApplication.id);
+      
       // Update application status to cancelled
-      const { error: applicationError } = await supabase
+      const { data: applicationData, error: applicationError } = await supabase
         .from('task_applications')
         .update({ status: 'cancelled' })
-        .eq('id', selectedApplication.id);
+        .eq('id', selectedApplication.id)
+        .select();
 
-      if (applicationError) throw applicationError;
+      if (applicationError) {
+        console.error('Error updating application status:', applicationError);
+        throw applicationError;
+      }
+      
+      console.log('Application status updated successfully:', applicationData);
 
       // Update task status back to active
       if (selectedApplication.task) {
-        const { error: taskError } = await supabase
+        console.log('Updating task status for task:', selectedApplication.task.id);
+        
+        const { data: taskData, error: taskError } = await supabase
           .from('tasks')
           .update({ 
             status: 'active',
             assigned_to: null,
             assigned_at: null
           })
-          .eq('id', selectedApplication.task.id);
+          .eq('id', selectedApplication.task.id)
+          .select();
 
-        if (taskError) throw taskError;
+        if (taskError) {
+          console.error('Error updating task status:', taskError);
+          throw taskError;
+        }
+        
+        console.log('Task status updated successfully:', taskData);
 
         // Try to create notification for applicant
         try {
-          const { error: notificationError } = await supabase
+          // Check if notifications table exists first
+          const { error: tableCheckError } = await supabase
+            .from('notifications')
+            .select('id')
+            .limit(1);
+            
+          // If table doesn't exist, skip notification creation
+          if (tableCheckError && tableCheckError.code === '42P01') {
+            console.log('Notifications table does not exist yet, skipping notification creation');
+            return;
+          }
+          
+          // If table exists, create notification
+          const { data: notificationData, error: notificationError } = await supabase
             .from('notifications')
             .insert({
               user_id: selectedApplication.applicant_id,
@@ -319,11 +375,15 @@ const Notifications = () => {
               type: 'warning',
               read: false,
               related_id: selectedApplication.task.id,
-              related_type: 'task'
-            });
+              related_type: 'task',
+              created_at: new Date().toISOString()
+            })
+            .select();
 
-          if (notificationError && notificationError.code !== '42P01') {
+          if (notificationError) {
             console.error('Error creating notification:', notificationError);
+          } else {
+            console.log('Notification created successfully:', notificationData);
           }
         } catch (notificationError: any) {
           // If notifications table doesn't exist, just log the error and continue
@@ -345,6 +405,12 @@ const Notifications = () => {
       fetchApplications();
     } catch (error: any) {
       console.error('Error cancelling assignment:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: "Error",
         description: "Failed to cancel assignment. Please try again.",

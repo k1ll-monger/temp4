@@ -82,7 +82,7 @@ const Home = () => {
       
       if (uniqueCreatorIds.length > 0) {
         const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
+          .from('users')
           .select('id, username, rating')
           .in('id', uniqueCreatorIds);
           
@@ -205,12 +205,125 @@ const Home = () => {
               key={task.id}
               task={task}
               onStatusChange={handleTaskStatusChange}
-              onApply={(taskId, message) => {
-                // Handle task application
-                toast({
-                  title: "Application Submitted",
-                  description: "Your application has been submitted successfully.",
-                });
+              onApply={async (taskId, proposal) => {
+                try {
+                  // Get the current user
+                  const { data: { user }, error: userError } = await supabase.auth.getUser();
+                  if (userError) throw userError;
+                  if (!user) throw new Error('No user found');
+
+                  // Get user's profile
+                  const { data: profile, error: profileError } = await supabase
+                    .from('users')
+                    .select('username, email')
+                    .eq('id', user.id)
+                    .single();
+
+                  if (profileError) throw profileError;
+
+                  // Get task details first
+                  const { data: taskData, error: taskError } = await supabase
+                    .from('tasks')
+                    .select('creator_id, title')
+                    .eq('id', taskId)
+                    .single();
+
+                  if (taskError) throw taskError;
+
+                  // Insert the application
+                  const { data: application, error: applicationError } = await supabase
+                    .from('task_applications')
+                    .insert([
+                      {
+                        task_id: taskId,
+                        applicant_id: user.id,
+                        applicant_name: profile.username,
+                        applicant_email: profile.email,
+                        proposal: proposal,
+                        status: 'pending',
+                        created_at: new Date().toISOString()
+                      }
+                    ])
+                    .select()
+                    .single();
+
+                  if (applicationError) throw applicationError;
+
+                  // Try to create notification with error logging
+                  try {
+                    // Check if notifications table exists first
+                    const { error: tableCheckError } = await supabase
+                      .from('notifications')
+                      .select('id')
+                      .limit(1);
+                      
+                    // If table doesn't exist, skip notification creation
+                    if (tableCheckError && tableCheckError.code === '42P01') {
+                      console.log('Notifications table does not exist yet, skipping notification creation');
+                      toast({
+                        title: "Success",
+                        description: "Your application has been submitted successfully.",
+                      });
+                      return;
+                    }
+                    
+                    // If table exists, create notification
+                    const { data: notifData, error: notifError } = await supabase
+                      .from('notifications')
+                      .insert([
+                        {
+                          user_id: taskData.creator_id,
+                          title: 'New Task Application',
+                          message: `${profile.username} has applied for your task "${taskData.title}"`,
+                          type: 'info',
+                          read: false,
+                          related_id: application.id,
+                          related_type: 'application',
+                          created_at: new Date().toISOString()
+                        }
+                      ])
+                      .select();
+
+                    if (notifError) {
+                      console.error('Notification creation error:', notifError);
+                      // Don't throw the error, just log it
+                      toast({
+                        title: "Note",
+                        description: "Application submitted but notification creation failed.",
+                        variant: "default",
+                      });
+                    } else {
+                      console.log('Notification created:', notifData);
+                      toast({
+                        title: "Success",
+                        description: "Your application has been submitted successfully.",
+                      });
+                    }
+                  } catch (notifError: any) {
+                    // If notifications table doesn't exist, just log the error and continue
+                    if (notifError.code === '42P01') {
+                      console.log('Notifications table does not exist yet');
+                      toast({
+                        title: "Success",
+                        description: "Your application has been submitted successfully.",
+                      });
+                    } else {
+                      console.error('Error creating notification:', notifError);
+                      toast({
+                        title: "Note",
+                        description: "Application submitted but notification creation failed.",
+                        variant: "default",
+                      });
+                    }
+                  }
+                } catch (error: any) {
+                  console.error('Error submitting application:', error);
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to submit application. Please try again.",
+                    variant: "destructive",
+                  });
+                }
               }}
             />
           ))}
