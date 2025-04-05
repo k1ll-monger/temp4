@@ -7,7 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, CheckCircle, XCircle, AlertCircle, Calendar, MapPin, DollarSign, User, Clock, Check, X, MessageSquare, ClipboardList, Star, Trophy } from 'lucide-react';
+import { 
+  AlertCircle, 
+  Calendar, 
+  Check, 
+  CheckCircle, 
+  ClipboardList,
+  Clock, 
+  DollarSign, 
+  Loader2,
+  MapPin, 
+  MessageSquare, 
+  RotateCcw, 
+  Star,
+  ThumbsDown, 
+  ThumbsUp,
+  Trophy,
+  User,
+  X, 
+  XCircle
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,6 +54,7 @@ interface Application {
     status: string;
     creator_id: string;
     creator_name: string;
+    completed_at?: string;
   } | null;
 }
 
@@ -172,8 +192,12 @@ const Applications = () => {
   const fetchMyApplications = async () => {
     try {
       setLoadingMyApps(true);
+      console.log("📱 fetchMyApplications - Starting to fetch applications for user:", user?.id);
       
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log("📱 fetchMyApplications - No user ID found");
+        return;
+      }
       
       // Get all applications made by the current user
       const { data, error } = await supabase
@@ -182,33 +206,72 @@ const Applications = () => {
         .eq('applicant_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("📱 fetchMyApplications - Error fetching applications:", error);
+        throw error;
+      }
+      
+      console.log("📱 fetchMyApplications - Raw applications data:", data);
 
       // Fetch tasks details for these applications
       const taskIds = data?.map(app => app.task_id) || [];
+      console.log("📱 fetchMyApplications - Task IDs to fetch:", taskIds);
       
       let taskDetails: Record<string, any> = {};
       
       if (taskIds.length > 0) {
         const { data: tasksData, error: tasksError } = await supabase
           .from('tasks')
-          .select('id, title, description, reward, deadline, location, status, creator_id, creator_name')
+          .select('id, title, description, reward, deadline, location, status, creator_id, creator_name, completed_at')
           .in('id', taskIds);
           
-        if (!tasksError && tasksData) {
+        if (tasksError) {
+          console.error("📱 fetchMyApplications - Error fetching task details:", tasksError);
+        } else if (tasksData) {
+          console.log("📱 fetchMyApplications - Tasks data:", tasksData);
           taskDetails = tasksData.reduce((acc, task) => {
             acc[task.id] = task;
             return acc;
           }, {} as Record<string, any>);
+          console.log("📱 fetchMyApplications - Processed task details:", taskDetails);
+        }
+      }
+      
+      // Double-check if any tasks are completed
+      if (taskIds.length > 0) {
+        const { data: completedTasksCheck, error: completedCheckError } = await supabase
+          .from('tasks')
+          .select('*')
+          .in('id', taskIds)
+          .eq('status', 'completed');
+          
+        if (completedCheckError) {
+          console.error("📱 fetchMyApplications - Error checking completed tasks:", completedCheckError);
+        } else {
+          console.log("📱 fetchMyApplications - Completed tasks check:", completedTasksCheck);
+          
+          // Make sure completed tasks are properly reflected in taskDetails
+          if (completedTasksCheck && completedTasksCheck.length > 0) {
+            completedTasksCheck.forEach(task => {
+              taskDetails[task.id] = task;
+            });
+            console.log("📱 fetchMyApplications - Updated task details with completed tasks:", taskDetails);
+          }
         }
       }
       
       // Combine application data with task details
-      const validApplications = data?.map(app => ({
-        ...app,
-        task: app.task_id ? taskDetails[app.task_id] || null : null
-      })) || [];
+      const validApplications = data?.map(app => {
+        const taskData = app.task_id ? taskDetails[app.task_id] || null : null;
+        const appWithTask = {
+          ...app,
+          task: taskData
+        };
+        console.log(`📱 fetchMyApplications - Processing application ${app.id} with task:`, taskData);
+        return appWithTask;
+      }) || [];
       
+      console.log("📱 fetchMyApplications - Final applications with task data:", validApplications);
       setMyApplications(validApplications);
     } catch (error: any) {
       console.error('Error fetching my applications:', error);
@@ -362,7 +425,7 @@ const Applications = () => {
 
       toast({
         title: "Success",
-        description: "Assignment cancelled successfully. The task is now available again.",
+        description: "Assignment cancelled successfully. The task is now available again for other applicants.",
       });
 
       setCancelDialogOpen(false);
@@ -526,6 +589,8 @@ const Applications = () => {
         }
       }
 
+      // We'll skip notification creation for now due to RLS permissions
+      /*
       // Create a notification for the applicant
       const { error: notificationError } = await supabase
         .from('notifications')
@@ -542,6 +607,7 @@ const Applications = () => {
       if (notificationError && notificationError.code !== '42P01') {
         console.error('Error creating notification:', notificationError);
       }
+      */
 
       toast({
         title: "Success",
@@ -551,7 +617,15 @@ const Applications = () => {
       setCompleteDialogOpen(false);
       setSelectedApplication(null);
       setRating(null);
-      fetchApplications();
+      
+      // Refresh applications list
+      await fetchApplications();
+      await fetchMyApplications();
+      
+      // Add a delay and then fully refresh the page for UI update
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error: any) {
       console.error('Error marking task as complete:', error);
       toast({
@@ -568,6 +642,126 @@ const Applications = () => {
   const rejectedApplications = applications.filter(app => app.status === 'rejected');
   const cancelledApplications = applications.filter(app => app.status === 'cancelled');
 
+  useEffect(() => {
+    // Log whenever applications or myApplications change
+    console.log("📊 Applications component - applications state:", applications);
+    console.log("📊 Applications component - myApplications state:", myApplications);
+    
+    // Check for completed tasks
+    const completedReceivedTasks = applications.filter(app => 
+      app.task && app.task.status === 'completed'
+    );
+    
+    const completedMyTasks = myApplications.filter(app => 
+      app.task && app.task.status === 'completed'
+    );
+    
+    console.log("📊 Applications component - Completed received tasks:", completedReceivedTasks.length);
+    console.log("📊 Applications component - Completed my tasks:", completedMyTasks.length);
+    
+    // Log specific details of completed tasks
+    if (completedReceivedTasks.length > 0) {
+      console.log("📊 Applications component - First completed received task:", completedReceivedTasks[0]);
+    }
+    
+    if (completedMyTasks.length > 0) {
+      console.log("📊 Applications component - First completed my task:", completedMyTasks[0]);
+    }
+  }, [applications, myApplications]);
+
+  // Add console logs to render methods
+  const renderPendingReceived = () => {
+    const pendingApplications = applications.filter(app => 
+      app.status === 'pending' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering pending received applications:", pendingApplications.length);
+    return pendingApplications;
+  };
+  
+  const renderAcceptedReceived = () => {
+    const acceptedApplications = applications.filter(app => 
+      app.status === 'accepted' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering accepted received applications:", acceptedApplications.length);
+    return acceptedApplications;
+  };
+  
+  const renderRejectedReceived = () => {
+    const rejectedApplications = applications.filter(app => 
+      app.status === 'rejected' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering rejected received applications:", rejectedApplications.length);
+    return rejectedApplications;
+  };
+  
+  const renderCancelledReceived = () => {
+    const cancelledApplications = applications.filter(app => 
+      app.status === 'cancelled' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering cancelled received applications:", cancelledApplications.length);
+    return cancelledApplications;
+  };
+  
+  const renderCompletedReceived = () => {
+    // Show ALL applications where the task is completed, regardless of application status
+    const completedApplications = applications.filter(app => 
+      app.task && app.task.status === 'completed'
+    );
+    console.log("📊 Rendering completed received applications:", completedApplications.length);
+    console.log("Completed received applications:", completedApplications);
+    return completedApplications;
+  };
+  
+  const renderPendingSubmitted = () => {
+    const pendingApplications = myApplications.filter(app => 
+      app.status === 'pending' && 
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering pending submitted applications:", pendingApplications.length);
+    return pendingApplications;
+  };
+  
+  const renderAcceptedSubmitted = () => {
+    const acceptedApplications = myApplications.filter(app => 
+      app.status === 'accepted' && 
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering accepted submitted applications:", acceptedApplications.length);
+    return acceptedApplications;
+  };
+  
+  const renderRejectedSubmitted = () => {
+    const rejectedApplications = myApplications.filter(app => 
+      app.status === 'rejected' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering rejected submitted applications:", rejectedApplications.length);
+    return rejectedApplications;
+  };
+  
+  const renderCompletedSubmitted = () => {
+    // Show ALL applications where the task is completed, regardless of application status
+    const completedApplications = myApplications.filter(app => 
+      app.task && app.task.status === 'completed'
+    );
+    console.log("📊 Rendering completed submitted applications:", completedApplications.length);
+    console.log("Completed applications:", completedApplications);
+    return completedApplications;
+  };
+  
+  const renderCancelledSubmitted = () => {
+    const cancelledApplications = myApplications.filter(app => 
+      app.status === 'cancelled' &&
+      (!app.task || app.task.status !== 'completed')
+    );
+    console.log("📊 Rendering cancelled submitted applications:", cancelledApplications.length);
+    return cancelledApplications;
+  };
+
   if (loading && loadingMyApps) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -578,69 +772,77 @@ const Applications = () => {
 
   // Custom card styles for a more compact UI
   const cardStyles = "transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/50 group";
-  const headerStyles = "p-4 pb-2";
-  const contentStyles = "p-4 pt-2";
-  const titleStyles = "text-base group-hover:text-primary transition-colors";
-  const descriptionStyles = "text-xs";
-  const sectionTitleStyles = "font-semibold mb-1 text-sm";
+  const headerStyles = "px-5 py-4 pb-3";
+  const contentStyles = "px-5 py-4 pt-2";
+  const titleStyles = "text-base font-medium group-hover:text-primary transition-colors";
+  const descriptionStyles = "text-xs text-muted-foreground mt-1";
+  const sectionTitleStyles = "font-medium mb-2 text-sm flex items-center gap-1.5 text-foreground/90";
   const textStyles = "text-sm";
-  const iconStyles = "h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors";
+  const iconStyles = "h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors";
   const buttonStyles = {
-    base: "h-8 text-xs transition-colors",
+    base: "h-8 text-xs transition-all duration-200",
     accept: "hover:bg-green-50 hover:text-green-600 hover:border-green-200 hover:scale-105 transition-transform",
     reject: "hover:bg-red-50 hover:text-red-600 hover:border-red-200 hover:scale-105 transition-transform",
     chat: "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 hover:scale-105 transition-transform",
     retract: "hover:bg-red-50 hover:text-red-600 hover:border-red-200 hover:scale-105 transition-transform"
   };
-  const sectionHeaderStyles = "text-base font-semibold mb-3 flex items-center gap-2";
-  const sectionStyles = "space-y-4";
-  const gridGapStyles = "grid gap-4";
+  const sectionHeaderStyles = "text-xl font-semibold mb-4 flex items-center gap-2";
+  const sectionStyles = "space-y-6";
+  const gridGapStyles = "grid gap-6";
 
   return (
     <div className="container mx-auto py-6 max-w-5xl">
-      <h1 className="text-2xl font-bold mb-4">Task Applications</h1>
-      
-      <div className="bg-muted/50 p-3 rounded-lg mb-4 text-sm">
-        <p className="text-muted-foreground">
-          <span className="font-medium">Use the tabs below to manage your applications:</span>
-          <br />
-          • "Received Applications" shows requests others have made to your tasks
-          <br />
-          • "My Applications" shows tasks you've applied to
-        </p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">Task Applications</h1>
+        <p className="text-muted-foreground">Manage your task applications and review submissions from others</p>
       </div>
       
       <Tabs defaultValue="received" className="w-full">
-        <TabsList className="mb-4 grid w-full grid-cols-2 bg-card border border-border p-1 rounded-lg">
-          <TabsTrigger value="received" className="flex items-center justify-center gap-2 py-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+        <TabsList className="mb-6 grid w-full grid-cols-2 bg-card border border-border p-1 rounded-lg shadow-sm">
+          <TabsTrigger value="received" className="flex items-center justify-center gap-2 py-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all hover:bg-primary/10">
             <User className="h-4 w-4" />
             Received Applications
           </TabsTrigger>
-          <TabsTrigger value="submitted" className="flex items-center justify-center gap-2 py-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+          <TabsTrigger value="submitted" className="flex items-center justify-center gap-2 py-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all hover:bg-primary/10">
             <ClipboardList className="h-4 w-4" />
             My Applications
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="received" className="border border-border rounded-lg p-4 mt-2">
-          <h2 className="text-lg font-bold mb-3">Applications Received</h2>
-          {applications.length === 0 ? (
-            <Card>
-              <CardContent className="py-6 text-center text-muted-foreground">
-                No applications found for your tasks.
-              </CardContent>
-            </Card>
+        <TabsContent value="received" className="border border-border rounded-lg p-4 sm:p-6 mt-4 shadow-sm">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>You haven't received any applications yet.</p>
+            </div>
           ) : (
-            <div className={sectionStyles}>
-              {/* Pending Applications Section */}
-              {pendingApplications.length > 0 && (
-                <div>
-                  <h3 className={sectionHeaderStyles}>
-                    <Clock className="h-4 w-4 text-yellow-500" />
-                    Pending Applications
-                  </h3>
-                  <div className={gridGapStyles}>
-                    {pendingApplications.map((application) => (
+            <Tabs defaultValue="pending-received">
+              <TabsList className="mb-6 grid w-full grid-cols-5 bg-transparent border border-border rounded-lg overflow-hidden shadow-sm">
+                <TabsTrigger value="pending-received" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Pending
+                </TabsTrigger>
+                <TabsTrigger value="accepted-received" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Accepted
+                </TabsTrigger>
+                <TabsTrigger value="rejected-received" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Rejected
+                </TabsTrigger>
+                <TabsTrigger value="cancelled-received" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Cancelled
+                </TabsTrigger>
+                <TabsTrigger value="completed-received" className="py-2.5 text-xs sm:text-sm border-l border-border bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-inner transition-all hover:bg-emerald-100/70 dark:hover:bg-emerald-900/30">
+                  Completed
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pending-received">
+                {/* Pending applications I've received */}
+                {renderPendingReceived().length > 0 ? (
+                  <div className="grid gap-6">
+                    {renderPendingReceived().map((application) => (
                       <Card 
                         key={application.id} 
                         id={`application-${application.id}`}
@@ -662,42 +864,60 @@ const Applications = () => {
                           </div>
                         </CardHeader>
                         <CardContent className={contentStyles}>
-                          <div className="space-y-3 text-sm">
-                            <div>
-                              <h3 className={sectionTitleStyles}>Applicant Details</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                                <p className={textStyles}><span className="font-medium">Name:</span> {application.applicant_name}</p>
-                                <p className={textStyles}><span className="font-medium">Email:</span> {application.applicant_email}</p>
+                          <div className="space-y-4">
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <h3 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+                                <User className="h-4 w-4 text-primary" />
+                                Applicant Details
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <p className="text-sm"><span className="font-medium">Name:</span> {application.applicant_name}</p>
+                                <p className="text-sm"><span className="font-medium">Email:</span> {application.applicant_email}</p>
                                 {application.applicant_phone && (
-                                  <p className={textStyles}><span className="font-medium">Phone:</span> {application.applicant_phone}</p>
+                                  <p className="text-sm"><span className="font-medium">Phone:</span> {application.applicant_phone}</p>
                                 )}
                               </div>
                             </div>
 
+                            <Separator className="my-3 bg-border/50" />
+
                             <div>
-                              <h3 className={sectionTitleStyles}>Proposal</h3>
-                              <p className="text-sm text-muted-foreground">{application.proposal}</p>
+                              <h3 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+                                <MessageSquare className="h-4 w-4 text-primary" />
+                                Proposal
+                              </h3>
+                              <div className="bg-muted/20 p-3 rounded-lg border border-border/50">
+                                <p className="text-sm text-foreground/80">{application.proposal}</p>
+                              </div>
                             </div>
 
                             {application.task && (
-                              <div>
-                                <h3 className={sectionTitleStyles}>Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
+                              <>
+                                <Separator className="my-3 bg-border/50" />
+                                <div>
+                                  <h3 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+                                    <ClipboardList className="h-4 w-4 text-primary" /> 
+                                    Task Details
+                                  </h3>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/20 p-3 rounded-lg">
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <DollarSign className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">₹{application.task.reward}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <MapPin className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">{application.task.location}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <Calendar className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
-                              </div>
+                              </>
                             )}
 
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-3 justify-end border-t border-border/40 mt-4">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -734,269 +954,310 @@ const Applications = () => {
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No pending applications.</p>
+                  </div>
+                )}
+              </TabsContent>
 
-              {/* Accepted Applications Section */}
-              {acceptedApplications.length > 0 && (
-                <div>
-                  <h3 className={sectionHeaderStyles}>
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Accepted Applications
-                  </h3>
-                  <div className={gridGapStyles}>
-                    {acceptedApplications.map((application) => (
-                      <Card 
-                        key={application.id} 
-                        id={`application-${application.id}`}
-                        className={cardStyles}
-                      >
-                        <CardHeader className={headerStyles}>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className={titleStyles}>
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription className={descriptionStyles}>
-                                Application received on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="default" className="text-xs transition-transform group-hover:scale-110">
-                              Accepted
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className={contentStyles}>
-                          <div className="space-y-3 text-sm">
-                            <div>
-                              <h3 className={sectionTitleStyles}>Applicant Details</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                                <p className={textStyles}><span className="font-medium">Name:</span> {application.applicant_name}</p>
-                                <p className={textStyles}><span className="font-medium">Email:</span> {application.applicant_email}</p>
-                                {application.applicant_phone && (
-                                  <p className={textStyles}><span className="font-medium">Phone:</span> {application.applicant_phone}</p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              <h3 className={sectionTitleStyles}>Proposal</h3>
-                              <p className="text-sm text-muted-foreground">{application.proposal}</p>
-                            </div>
-
-                            {application.task && (
+              <TabsContent value="accepted-received">
+                {renderAcceptedReceived().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Accepted Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderAcceptedReceived().map((application) => (
+                        <Card key={application.id} className="group hover:shadow-md transition-all">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
                               <div>
-                                <h3 className={sectionTitleStyles}>Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
+                                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                                  {application.task?.title || "Unknown Task"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {application.task?.completed_at ? 
+                                    `Completed on ${format(new Date(application.task.completed_at), 'MMM d, yyyy')}` :
+                                    `Applied on ${format(new Date(application.created_at), 'MMM d, yyyy')}`
+                                  }
+                                </CardDescription>
                               </div>
-                            )}
-
-                            <div className="flex gap-2 pt-1">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="h-8 text-xs"
-                                onClick={() => {
-                                  setSelectedApplication(application);
-                                  setCancelDialogOpen(true);
-                                }}
+                              <Badge 
+                                variant="default" 
+                                className="bg-green-600 hover:bg-green-700 text-xs transition-transform group-hover:scale-110"
                               >
-                                Cancel Assignment
-                              </Button>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="h-8 text-xs bg-green-600 hover:bg-green-700 transition-all hover:scale-105"
-                                onClick={() => {
-                                  setSelectedApplication(application);
-                                  setCompleteDialogOpen(true);
-                                }}
+                                Accepted
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-y-4">
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <User className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.applicant_name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm font-medium">₹{application.task?.reward}</span>
+                              </div>
+                              
+                              <div className="flex gap-2 pt-3 justify-end border-t border-border/40 mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={`${buttonStyles.base} ${buttonStyles.chat}`}
+                                  onClick={() => handleStartChat(application)}
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                                  Chat
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="transition-all bg-emerald-600 hover:bg-emerald-700 hover:scale-105 text-white h-8 text-xs hover:shadow-md hover:shadow-emerald-600/20"
+                                  onClick={() => {
+                                    setSelectedApplication(application);
+                                    setCompleteDialogOpen(true);
+                                  }}
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                  Mark Complete
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No accepted applications.</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="rejected-received">
+                {renderRejectedReceived().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      Rejected Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderRejectedReceived().map((application) => (
+                        <Card key={application.id}>
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-xl">
+                                  {application.task?.title || 'Untitled Task'}
+                                </CardTitle>
+                                <CardDescription>
+                                  Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="destructive" className="text-xs transition-transform group-hover:scale-110">
+                                Rejected
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {application.task && (
+                                <div>
+                                  <h3 className="font-semibold mb-2">Task Details</h3>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <DollarSign className={iconStyles} />
+                                    <span>₹{application.task.reward}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <MapPin className={iconStyles} />
+                                    <span>{application.task.location}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <Calendar className={iconStyles} />
+                                    <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div>
+                                <h3 className="font-semibold mb-2">Your Proposal</h3>
+                                <p className="text-muted-foreground">{application.proposal}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No rejected applications.</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="cancelled-received">
+                {renderCancelledReceived().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-gray-500" />
+                      Cancelled Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderCancelledReceived().map((application) => (
+                        <Card key={application.id}>
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                                  {application.task?.title || "Unknown Task"}
+                                </CardTitle>
+                                <CardDescription>
+                                  Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="outline" className="text-xs transition-transform group-hover:scale-110">
+                                Cancelled
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-y-2">
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm font-medium">₹{application.task?.reward}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No cancelled applications.</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="completed-received">
+                {renderCompletedReceived().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Completed Tasks
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderCompletedReceived().map((application) => (
+                        <Card key={application.id} className="group hover:shadow-md transition-all">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                                  {application.task?.title || "Unknown Task"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {application.task?.completed_at ? 
+                                    `Completed on ${format(new Date(application.task.completed_at), 'MMM d, yyyy')}` :
+                                    `Applied on ${format(new Date(application.created_at), 'MMM d, yyyy')}`
+                                  }
+                                </CardDescription>
+                              </div>
+                              <Badge 
+                                variant="default" 
+                                className="bg-emerald-600 hover:bg-emerald-700 text-xs transition-transform group-hover:scale-110"
                               >
-                                <Trophy className="h-3.5 w-3.5 mr-1" />
-                                Mark as Complete
-                              </Button>
+                                Completed
+                              </Badge>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-y-2">
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <User className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.applicant_name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm font-medium">₹{application.task?.reward}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <Calendar className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">Due: {format(new Date(application.task?.deadline || ''), 'MMM d, yyyy')}</span>
+                              </div>
+                              <div className="mt-4 text-xs text-muted-foreground">
+                                <span className="font-medium">Original application status: </span>
+                                <Badge variant="outline" className="text-xs ml-1">
+                                  {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Rejected Applications Section */}
-              {rejectedApplications.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <XCircle className="h-5 w-5 text-red-500" />
-                    Rejected Applications
-                  </h3>
-                  <div className="grid gap-6">
-                    {rejectedApplications.map((application) => (
-                      <Card key={application.id} id={`application-${application.id}`}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription>
-                                Application received on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="destructive" className="text-xs transition-transform group-hover:scale-110">
-                              Rejected
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div>
-                              <h3 className="font-semibold mb-2">Applicant Details</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                <p><strong>Name:</strong> {application.applicant_name}</p>
-                                <p><strong>Email:</strong> {application.applicant_email}</p>
-                                {application.applicant_phone && (
-                                  <p><strong>Phone:</strong> {application.applicant_phone}</p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              <h3 className="font-semibold mb-2">Proposal</h3>
-                              <p className="text-muted-foreground">{application.proposal}</p>
-                            </div>
-
-                            {application.task && (
-                              <div>
-                                <h3 className="font-semibold mb-2">Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No completed tasks found in this section.</p>
                   </div>
-                </div>
-              )}
-
-              {/* Cancelled Applications Section */}
-              {cancelledApplications.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-gray-500" />
-                    Cancelled Applications
-                  </h3>
-                  <div className="grid gap-6">
-                    {cancelledApplications.map((application) => (
-                      <Card key={application.id} id={`application-${application.id}`}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription>
-                                Application received on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="outline" className="text-xs transition-transform group-hover:scale-110">
-                              Cancelled
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div>
-                              <h3 className="font-semibold mb-2">Applicant Details</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                <p><strong>Name:</strong> {application.applicant_name}</p>
-                                <p><strong>Email:</strong> {application.applicant_email}</p>
-                                {application.applicant_phone && (
-                                  <p><strong>Phone:</strong> {application.applicant_phone}</p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              <h3 className="font-semibold mb-2">Proposal</h3>
-                              <p className="text-muted-foreground">{application.proposal}</p>
-                            </div>
-
-                            {application.task && (
-                              <div>
-                                <h3 className="font-semibold mb-2">Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </TabsContent>
 
-        <TabsContent value="submitted" className="border border-border rounded-lg p-4 mt-2">
-          <h2 className="text-lg font-bold mb-3">My Submitted Applications</h2>
+        <TabsContent value="submitted" className="border border-border rounded-lg p-4 sm:p-6 mt-4 shadow-sm">
           {loadingMyApps ? (
-            <div className="flex justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : myApplications.length === 0 ? (
-            <Card>
-              <CardContent className="py-6 text-center text-muted-foreground">
-                You haven't applied to any tasks yet.
-              </CardContent>
-            </Card>
+            <div className="text-center py-8 text-muted-foreground">
+              <p>You haven't submitted any applications yet.</p>
+            </div>
           ) : (
-            <div className={sectionStyles}>
-              {/* Pending applications I've submitted */}
-              {myApplications.filter(app => app.status === 'pending').length > 0 && (
-                <div>
-                  <h3 className={sectionHeaderStyles}>
-                    <Clock className="h-4 w-4 text-yellow-500" />
-                    Pending Applications
-                  </h3>
-                  <div className={gridGapStyles}>
-                    {myApplications.filter(app => app.status === 'pending').map((application) => (
+            <Tabs defaultValue="pending-submitted">
+              <TabsList className="mb-6 grid w-full grid-cols-5 bg-transparent border border-border rounded-lg overflow-hidden shadow-sm">
+                <TabsTrigger value="pending-submitted" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Pending
+                </TabsTrigger>
+                <TabsTrigger value="accepted-submitted" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Accepted
+                </TabsTrigger>
+                <TabsTrigger value="rejected-submitted" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Rejected
+                </TabsTrigger>
+                <TabsTrigger value="cancelled-submitted" className="py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-inner transition-all hover:bg-muted/50">
+                  Cancelled
+                </TabsTrigger>
+                <TabsTrigger value="completed-submitted" className="py-2.5 text-xs sm:text-sm border-l border-border bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-inner transition-all hover:bg-emerald-100/70 dark:hover:bg-emerald-900/30">
+                  Completed
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pending-submitted">
+                {/* Pending applications I've submitted */}
+                {renderPendingSubmitted().length > 0 ? (
+                  <div className="grid gap-6">
+                    {renderPendingSubmitted().map((application) => (
                       <Card 
                         key={application.id}
                         className={cardStyles}
@@ -1017,34 +1278,37 @@ const Applications = () => {
                           </div>
                         </CardHeader>
                         <CardContent className={contentStyles}>
-                          <div className="space-y-3 text-sm">
+                          <div className="space-y-4">
                             {application.task && (
-                              <div>
-                                <h3 className={sectionTitleStyles}>Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
+                              <>                                
+                                <div>
+                                  <h3 className={sectionTitleStyles}>Task Details</h3>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <DollarSign className={iconStyles} />
+                                    <span>₹{application.task.reward}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <MapPin className={iconStyles} />
+                                    <span>{application.task.location}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <Calendar className={iconStyles} />
+                                    <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                                  </div>
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    Creator: {application.task.creator_name || 'Anonymous User'}
+                                  </p>
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                  Creator: {application.task.creator_name || 'Anonymous User'}
-                                </p>
-                              </div>
+                                <Separator className="my-3 bg-border/50" />
+                              </>
                             )}
-
+                            
                             <div>
                               <h3 className={sectionTitleStyles}>Your Proposal</h3>
                               <p className="text-sm text-muted-foreground">{application.proposal}</p>
                             </div>
 
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-3 justify-end border-t border-border/40 mt-4">
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -1076,193 +1340,288 @@ const Applications = () => {
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No pending applications.</p>
+                  </div>
+                )}
+              </TabsContent>
 
-              {/* Accepted applications I've submitted */}
-              {myApplications.filter(app => app.status === 'accepted').length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    Accepted Applications
-                  </h3>
-                  <div className="grid gap-6">
-                    {myApplications.filter(app => app.status === 'accepted').map((application) => (
-                      <Card key={application.id}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription>
-                                Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="default" className="text-xs transition-transform group-hover:scale-110">
-                              Accepted
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {application.task && (
+              <TabsContent value="accepted-submitted">
+                {/* Accepted applications I've submitted */}
+                {renderAcceptedSubmitted().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      Accepted Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderAcceptedSubmitted().map((application) => (
+                        <Card key={application.id} className={cardStyles}>
+                          <CardHeader className={headerStyles}>
+                            <div className="flex justify-between items-start">
                               <div>
-                                <h3 className="font-semibold mb-2">Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
+                                <CardTitle className={titleStyles}>
+                                  {application.task?.title || 'Untitled Task'}
+                                </CardTitle>
+                                <CardDescription className={descriptionStyles}>
+                                  Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="default" className="text-xs transition-transform group-hover:scale-110 bg-green-600 hover:bg-green-700">
+                                Accepted
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className={contentStyles}>
+                            <div className="space-y-4">
+                              {application.task && (
+                                <div className="bg-muted/30 rounded-lg p-3">
+                                  <h3 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+                                    <ClipboardList className="h-4 w-4 text-primary" />
+                                    Task Details
+                                  </h3>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <DollarSign className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">₹{application.task.reward}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <MapPin className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">{application.task.location}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                      <Calendar className="h-4 w-4 text-primary/70" />
+                                      <span className="text-sm">{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                              )}
+
+                              <Separator className="my-3 bg-border/50" />
+
+                              <div>
+                                <h3 className="font-medium text-sm mb-2 flex items-center gap-1.5">
+                                  <MessageSquare className="h-4 w-4 text-primary" />
+                                  Your Proposal
+                                </h3>
+                                <div className="bg-muted/20 p-3 rounded-lg border border-border/50">
+                                  <p className="text-sm text-foreground/80">{application.proposal}</p>
                                 </div>
                               </div>
-                            )}
 
-                            <div>
-                              <h3 className="font-semibold mb-2">Your Proposal</h3>
-                              <p className="text-muted-foreground">{application.proposal}</p>
-                            </div>
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (application.task) {
-                                  navigate(`/chat?taskId=${application.task.id}`);
-                                }
-                              }}
-                            >
-                              <MessageSquare className="h-4 w-4 mr-1" />
-                              Contact
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Rejected applications I've submitted */}
-              {myApplications.filter(app => app.status === 'rejected').length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <XCircle className="h-5 w-5 text-red-500" />
-                    Rejected Applications
-                  </h3>
-                  <div className="grid gap-6">
-                    {myApplications.filter(app => app.status === 'rejected').map((application) => (
-                      <Card key={application.id}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription>
-                                Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="destructive" className="text-xs transition-transform group-hover:scale-110">
-                              Rejected
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {application.task && (
-                              <div>
-                                <h3 className="font-semibold mb-2">Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
+                              <div className="flex gap-2 pt-3 justify-end border-t border-border/40 mt-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={`${buttonStyles.base} ${buttonStyles.chat}`}
+                                  onClick={() => {
+                                    if (application.task) {
+                                      navigate(`/chat?taskId=${application.task.id}`);
+                                    }
+                                  }}
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                                  Contact
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="transition-all bg-emerald-600 hover:bg-emerald-700 hover:scale-105 text-white h-8 text-xs hover:shadow-md hover:shadow-emerald-600/20"
+                                  onClick={() => {
+                                    setSelectedApplication(application);
+                                    setCompleteDialogOpen(true);
+                                  }}
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                  Mark Complete
+                                </Button>
                               </div>
-                            )}
-
-                            <div>
-                              <h3 className="font-semibold mb-2">Your Proposal</h3>
-                              <p className="text-muted-foreground">{application.proposal}</p>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground italic border border-dashed border-border rounded-lg bg-muted/20">
+                    <p>No accepted applications.</p>
+                  </div>
+                )}
+              </TabsContent>
 
-              {/* Cancelled applications I've submitted */}
-              {myApplications.filter(app => app.status === 'cancelled').length > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-gray-500" />
-                    Cancelled Applications
-                  </h3>
-                  <div className="grid gap-6">
-                    {myApplications.filter(app => app.status === 'cancelled').map((application) => (
-                      <Card key={application.id}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {application.task?.title || 'Untitled Task'}
-                              </CardTitle>
-                              <CardDescription>
-                                Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="outline" className="text-xs transition-transform group-hover:scale-110">
-                              Cancelled
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {application.task && (
+              <TabsContent value="rejected-submitted">
+                {/* Rejected applications I've submitted */}
+                {renderRejectedSubmitted().length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      Rejected Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderRejectedSubmitted().map((application) => (
+                        <Card key={application.id}>
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
                               <div>
-                                <h3 className="font-semibold mb-2">Task Details</h3>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <DollarSign className={iconStyles} />
-                                  <span>₹{application.task.reward}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <MapPin className={iconStyles} />
-                                  <span>{application.task.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                                  <Calendar className={iconStyles} />
-                                  <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
-                                </div>
+                                <CardTitle className="text-xl">
+                                  {application.task?.title || 'Untitled Task'}
+                                </CardTitle>
+                                <CardDescription>
+                                  Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                                </CardDescription>
                               </div>
-                            )}
-
-                            <div>
-                              <h3 className="font-semibold mb-2">Your Proposal</h3>
-                              <p className="text-muted-foreground">{application.proposal}</p>
+                              <Badge variant="destructive" className="text-xs transition-transform group-hover:scale-110">
+                                Rejected
+                              </Badge>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {application.task && (
+                                <div>
+                                  <h3 className="font-semibold mb-2">Task Details</h3>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <DollarSign className={iconStyles} />
+                                    <span>₹{application.task.reward}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <MapPin className={iconStyles} />
+                                    <span>{application.task.location}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                    <Calendar className={iconStyles} />
+                                    <span>{format(new Date(application.task.deadline), 'MMM d, yyyy')}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div>
+                                <h3 className="font-semibold mb-2">Your Proposal</h3>
+                                <p className="text-muted-foreground">{application.proposal}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="cancelled-submitted">
+                {/* Cancelled applications I've submitted */}
+                {renderCancelledSubmitted().length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-gray-500" />
+                      Cancelled Applications
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderCancelledSubmitted().map((application) => (
+                        <Card key={application.id}>
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                                  {application.task?.title || "Unknown Task"}
+                                </CardTitle>
+                                <CardDescription>
+                                  Applied on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="outline" className="text-xs transition-transform group-hover:scale-110">
+                                Cancelled
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-y-2">
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm font-medium">₹{application.task?.reward}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="completed-submitted">
+                {renderCompletedSubmitted().length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Completed Tasks
+                    </h3>
+                    <div className="grid gap-6">
+                      {renderCompletedSubmitted().map((application) => (
+                        <Card key={application.id} className="group hover:shadow-md transition-all">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base group-hover:text-primary transition-colors">
+                                  {application.task?.title || "Unknown Task"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {application.task?.completed_at ? 
+                                    `Completed on ${format(new Date(application.task.completed_at), 'MMM d, yyyy')}` :
+                                    `Applied on ${format(new Date(application.created_at), 'MMM d, yyyy')}`
+                                  }
+                                </CardDescription>
+                              </div>
+                              <Badge 
+                                variant="default" 
+                                className="bg-emerald-600 hover:bg-emerald-700 text-xs transition-transform group-hover:scale-110"
+                              >
+                                Completed
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-y-2">
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <User className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.creator_name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <MapPin className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">{application.task?.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <DollarSign className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm font-medium">₹{application.task?.reward}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                                <Calendar className="h-4 w-4 group-hover:text-primary transition-colors" />
+                                <span className="text-sm">Due: {format(new Date(application.task?.deadline || ''), 'MMM d, yyyy')}</span>
+                              </div>
+                              <div className="mt-4 text-xs text-muted-foreground">
+                                <span className="font-medium">Original application status: </span>
+                                <Badge variant="outline" className="text-xs ml-1">
+                                  {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p>No completed tasks.</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </TabsContent>
       </Tabs>
@@ -1277,19 +1636,27 @@ const Applications = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedApplication && (
-            <div className="py-2">
-              <h3 className="font-semibold text-sm">{selectedApplication.task?.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Assigned to: {selectedApplication.applicant_name}
-              </p>
+            <div className="py-3 px-4 bg-muted/30 rounded-lg border border-border/50">
+              <h3 className="font-medium text-sm mb-1.5">{selectedApplication.task?.title}</h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <User className="h-3.5 w-3.5 text-primary/70" />
+                <span>Assigned to: {selectedApplication.applicant_name}</span>
+              </div>
+              {selectedApplication.task?.deadline && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Calendar className="h-3.5 w-3.5 text-primary/70" />
+                  <span>Due: {format(new Date(selectedApplication.task.deadline), 'MMM d, yyyy')}</span>
+                </div>
+              )}
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
             <Button 
               variant="outline" 
               onClick={() => setCancelDialogOpen(false)}
               className="transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-sm hover:scale-105"
             >
+              <X className="h-4 w-4 mr-2" />
               No, Keep Assignment
             </Button>
             <Button 
@@ -1297,6 +1664,7 @@ const Applications = () => {
               onClick={handleCancelAssignment}
               className="transition-all text-sm hover:shadow-md hover:shadow-destructive/20 hover:scale-105"
             >
+              <RotateCcw className="h-4 w-4 mr-2" />
               Yes, Cancel Assignment
             </Button>
           </DialogFooter>
@@ -1313,19 +1681,36 @@ const Applications = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedApplication && (
-            <div className="py-2">
-              <h3 className="font-semibold text-sm">{selectedApplication.task?.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Applied on: {format(new Date(selectedApplication.created_at), 'MMM d, yyyy')}
-              </p>
+            <div className="py-3 px-4 bg-muted/30 rounded-lg border border-border/50">
+              <h3 className="font-medium text-sm mb-1.5">{selectedApplication.task?.title}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5 text-primary/70" />
+                  <span>Applied: {format(new Date(selectedApplication.created_at), 'MMM d, yyyy')}</span>
+                </div>
+                {selectedApplication.task?.reward && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <DollarSign className="h-3.5 w-3.5 text-primary/70" />
+                    <span>Reward: ₹{selectedApplication.task.reward}</span>
+                  </div>
+                )}
+              </div>
+              {selectedApplication.proposal && (
+                <div className="mt-2 pt-2 border-t border-border/30">
+                  <p className="text-xs text-muted-foreground italic line-clamp-2">
+                    "{selectedApplication.proposal.substring(0, 100)}{selectedApplication.proposal.length > 100 ? '...' : ''}"
+                  </p>
+                </div>
+              )}
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
             <Button 
               variant="outline" 
               onClick={() => setRetractDialogOpen(false)}
               className="transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-sm hover:scale-105"
             >
+              <X className="h-4 w-4 mr-2" />
               No, Keep Application
             </Button>
             <Button 
@@ -1333,6 +1718,7 @@ const Applications = () => {
               onClick={handleRetractApplication}
               className="transition-all text-sm hover:shadow-md hover:shadow-destructive/20 hover:scale-105"
             >
+              <RotateCcw className="h-4 w-4 mr-2" />
               Yes, Retract Application
             </Button>
           </DialogFooter>
@@ -1350,15 +1736,24 @@ const Applications = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedApplication && (
-            <div className="py-2 space-y-3">
-              <h3 className="font-semibold text-sm">{selectedApplication.task?.title}</h3>
-              <p className="text-xs text-muted-foreground">
-                Assigned to: {selectedApplication.applicant_name}
-              </p>
+            <div className="py-3 space-y-4">
+              <div className="px-4 py-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200/50 dark:border-emerald-700/30">
+                <h3 className="font-medium text-sm mb-1.5 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                  <span>{selectedApplication.task?.title}</span>
+                </h3>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <User className="h-3.5 w-3.5 text-emerald-600/70" />
+                  <span>Completed by: {selectedApplication.applicant_name}</span>
+                </div>
+              </div>
               
               <div className="space-y-2">
-                <p className="text-sm font-medium">Rate this user:</p>
-                <div className="flex items-center gap-2">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-yellow-500" />
+                  Rate this user:
+                </p>
+                <div className="flex items-center gap-2 bg-muted/20 p-3 rounded-lg justify-center">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
@@ -1372,28 +1767,30 @@ const Applications = () => {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 text-center">
                   Rating is optional but helps other users know about the quality of work.
                 </p>
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
             <Button 
               variant="outline" 
               onClick={() => {
                 setCompleteDialogOpen(false);
                 setRating(null);
               }}
-              className="transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-sm hover:scale-105"
+              className="transition-all hover:bg-muted hover:text-foreground hover:border-border text-sm hover:scale-105"
             >
+              <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
             <Button 
               variant="default" 
               onClick={handleMarkComplete}
-              className="transition-all bg-green-600 hover:bg-green-700 text-sm hover:shadow-md hover:shadow-green-600/20 hover:scale-105"
+              className="transition-all bg-emerald-600 hover:bg-emerald-700 text-sm hover:shadow-md hover:shadow-emerald-600/20 hover:scale-105"
             >
+              <CheckCircle className="h-4 w-4 mr-2" />
               Confirm Completion
             </Button>
           </DialogFooter>

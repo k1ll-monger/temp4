@@ -56,7 +56,7 @@ const Signup = () => {
   const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newConfirmPassword = e.target.value;
     setConfirmPassword(newConfirmPassword);
-    setConfirmPasswordError(newPassword !== newConfirmPassword ? "Passwords do not match" : "");
+    setConfirmPasswordError(password !== newConfirmPassword ? "Passwords do not match" : "");
   };
 
   const handleSignup = async (e: React.FormEvent) => {

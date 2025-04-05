@@ -21,8 +21,8 @@ interface Application {
 
 interface TaskApplicationsProps {
   taskId: string;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const TaskApplications = ({ taskId, isOpen, onOpenChange }: TaskApplicationsProps) => {
@@ -31,7 +31,7 @@ const TaskApplications = ({ taskId, isOpen, onOpenChange }: TaskApplicationsProp
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen === undefined || isOpen) {
       fetchApplications();
     }
   }, [isOpen, taskId]);
@@ -99,7 +99,7 @@ const TaskApplications = ({ taskId, isOpen, onOpenChange }: TaskApplicationsProp
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen !== undefined ? isOpen : true} onOpenChange={onOpenChange || (() => {})}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Task Applications</DialogTitle>

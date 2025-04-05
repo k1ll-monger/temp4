@@ -94,6 +94,14 @@ const App = () => {
                 }
               />
               <Route
+                path="/tasks/completed"
+                element={
+                  <ProtectedRoute>
+                    <Tasks showCompleted={true} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/chat"
                 element={
                   <ProtectedRoute>

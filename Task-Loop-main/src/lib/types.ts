@@ -15,7 +15,7 @@ export interface TaskType {
   reward: number;
   deadline: Date;
   taskType: "normal" | "joint";
-  status: "active" | "completed";
+  status: "active" | "completed" | "assigned" | "cancelled";
   createdAt: Date;
   creatorId: string;
   creatorName: string;

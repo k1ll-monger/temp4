@@ -89,6 +89,7 @@ const TaskCard = ({
     proposal: ''
   });
   const [userRating, setUserRating] = useState<number | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
 
   // Check if the user is the creator of the task (use prop if provided)
   const userIsCreator = isCreator || user?.id === task.creatorId;
@@ -110,7 +111,6 @@ const TaskCard = ({
             setFormData(prev => ({
               ...prev,
               name: creatorProfile.username || '',
-              email: creatorProfile.email || ''
             }));
           }
         } catch (error) {
@@ -154,6 +154,23 @@ const TaskCard = ({
       fetchRatings();
     }
   }, [isDetailsDialogOpen, task.creatorId]);
+
+  // Trace component initialization to check for props
+  useEffect(() => {
+    console.log(`⚡ TaskCard mounted for task ${task.id}`);
+    console.log(`⚡ Task status: ${task.status}, isCompleted prop: ${isCompleted}`);
+    console.log(`⚡ Task data:`, task);
+    
+    // Return cleanup function
+    return () => {
+      console.log(`⚡ TaskCard unmounted for task ${task.id}`);
+    };
+  }, [task.id, task.status, isCompleted]);
+
+  // Log whenever the task status changes
+  useEffect(() => {
+    console.log(`⚡ Task ${task.id} status changed to: ${task.status}`);
+  }, [task.id, task.status]);
 
   const handleCancel = () => {
     if (onCancel) {
@@ -258,24 +275,129 @@ const TaskCard = ({
 
   const handleCloseTask = async () => {
     try {
+      console.log("🔧 Starting task completion process for task ID:", task.id);
+      console.log("🔧 Complete task data:", task);
+      setIsSubmitting(true);
+      
       if (onStatusChange) {
+        console.log("🔧 Using onStatusChange callback");
         onStatusChange(task.id);
       } else {
-        const { error } = await supabase
-          .from('tasks')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', task.id);
+        console.log("🔧 Using direct database update");
+        
+        try {
+          // First, try to get the task to confirm it exists and check its current status
+          const { data: taskCheck, error: checkError } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('id', task.id)
+            .single();
+            
+          if (checkError) {
+            console.error("🔧 Error finding task:", checkError);
+            throw new Error(`Task not found: ${checkError.message}`);
+          }
+          
+          console.log("🔧 Found task to complete:", taskCheck);
+          console.log("🔧 Current task status:", taskCheck.status);
+          
+          // Check if already completed
+          if (taskCheck.status === 'completed') {
+            console.log("🔧 Task is already marked as completed in the database");
+            toast({
+              title: "Task Already Completed",
+              description: "This task has already been marked as completed. Refreshing the page to show updated status.",
+            });
+            
+            // Force a hard reload to make sure UI reflects database state
+            window.location.reload();
+            return;
+          }
+          
+          // Mark task as completed
+          console.log("🔧 Updating task status to completed");
+          const { data: updateData, error: taskError } = await supabase
+            .from('tasks')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', task.id)
+            .select();
 
-        if (error) throw error;
+          if (taskError) {
+            console.error("🔧 Task update error:", taskError);
+            throw new Error(`Failed to update task: ${taskError.message}`);
+          }
+          
+          console.log("🔧 Update successful:", updateData);
+          
+          // Verify the update was successful by fetching the task again
+          const { data: verifyTask, error: verifyError } = await supabase
+            .from('tasks')
+            .select('status')
+            .eq('id', task.id)
+            .single();
+            
+          if (verifyError) {
+            console.error("🔧 Error verifying task update:", verifyError);
+          } else {
+            console.log("🔧 Verification status:", verifyTask.status);
+            if (verifyTask.status !== 'completed') {
+              console.warn("🔧 Task was not updated to completed status in the database!");
+            } else {
+              console.log("🔧 Task successfully marked as completed in database");
+            }
+          }
 
-        toast({
-          title: "Success!",
-          description: "Task marked as completed.",
-        });
+          // If rating provided, save it
+          if (rating && task.assignedTo) {
+            console.log("Saving rating:", rating, "for user:", task.assignedTo);
+            
+            try {
+              // Save the rating
+              const { data: ratingData, error: ratingError } = await supabase
+                .from('user_ratings')
+                .insert({
+                  rated_by_id: user?.id,
+                  rated_user_id: task.assignedTo,
+                  task_id: task.id,
+                  rating: rating,
+                  created_at: new Date().toISOString()
+                })
+                .select();
+
+              if (ratingError) {
+                console.error('Error saving rating:', ratingError);
+              } else {
+                console.log("Rating saved successfully:", ratingData);
+              }
+            } catch (ratingErr: any) {
+              console.error("Rating insert error:", ratingErr);
+            }
+          }
+
+          toast({
+            title: "Success!",
+            description: "Task marked as completed successfully!",
+          });
+          
+          console.log("Task completion successful, forcing page reload");
+          
+          // Force a hard reload of the page to update the UI
+          setTimeout(() => {
+            // Clear any cached data by using hard reload
+            window.location.href = window.location.href.split('#')[0] + '?refresh=' + Date.now();
+          }, 1000);
+        } catch (dbError: any) {
+          console.error("Database operation error:", dbError);
+          throw dbError;
+        }
       }
+      
+      setIsCompleteConfirmationOpen(false);
+      setRating(null);
     } catch (error: any) {
       console.error('Error closing task:', error);
       toast({
@@ -283,11 +405,16 @@ const TaskCard = ({
         description: error.message || "Failed to close task. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const getStatusInfo = () => {
+    console.log(`🎨 Getting status info for task ${task.id}, status: ${task.status}, isCompleted: ${isCompleted}`);
+    
     if (task.status === 'completed' || isCompleted) {
+      console.log(`🎨 Task ${task.id} displaying as COMPLETED`);
       return {
         color: 'text-red-500',
         bgColor: 'bg-red-500',
@@ -295,6 +422,7 @@ const TaskCard = ({
         variant: 'destructive' as const
       };
     } else if (task.status === 'assigned') {
+      console.log(`🎨 Task ${task.id} displaying as ASSIGNED`);
       return {
         color: 'text-green-500',
         bgColor: 'bg-green-500',
@@ -302,6 +430,7 @@ const TaskCard = ({
         variant: 'default' as const
       };
     } else if (task.status === 'cancelled') {
+      console.log(`🎨 Task ${task.id} displaying as CANCELLED`);
       return {
         color: 'text-gray-500',
         bgColor: 'bg-gray-500',
@@ -309,6 +438,7 @@ const TaskCard = ({
         variant: 'outline' as const
       };
     } else {
+      console.log(`🎨 Task ${task.id} displaying as LIVE`);
       return {
         color: 'text-yellow-500',
         bgColor: 'bg-yellow-500',
@@ -390,7 +520,7 @@ const TaskCard = ({
                     size="sm" 
                     onClick={(e) => { 
                       e.stopPropagation(); 
-                      onEdit?.(task); 
+                      onEdit?.(task as TaskType); 
                     }}
                     className="transition-all hover:bg-primary/10 hover:border-primary"
                   >
@@ -412,18 +542,114 @@ const TaskCard = ({
                 </>
               )}
               {task.status === 'assigned' && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    onCancel?.(task.id); 
-                  }}
-                  className="transition-all hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel Assignment
-                </Button>
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      onCancel?.(task.id); 
+                    }}
+                    className="transition-all hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel Assignment
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      console.log("Opening complete dialog for task:", task);
+                      setIsCompleteConfirmationOpen(true); 
+                    }}
+                    className="transition-all hover:bg-green-600 hover:text-white"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Mark Complete
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={async (e) => { 
+                      e.stopPropagation();
+                      
+                      // Show what we're trying to do
+                      console.log("EMERGENCY COMPLETE for task:", task.id);
+                      
+                      try {
+                        // Method 1: Direct update
+                        const { data: directUpdate, error: directError } = await supabase
+                          .from('tasks')
+                          .update({ status: 'completed' })
+                          .eq('id', task.id)
+                          .select();
+                        
+                        console.log("Direct update result:", directUpdate, "Error:", directError);
+                        
+                        // Method 2: Try RPC if available
+                        try {
+                          const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                            'complete_task',
+                            { task_id: task.id }
+                          );
+                          
+                          console.log("RPC result:", rpcResult, "Error:", rpcError);
+                        } catch (rpcErr) {
+                          console.log("RPC not available:", rpcErr);
+                        }
+                        
+                        // Method 3: Raw SQL (if you have permission)
+                        try {
+                          const { data: sqlResult, error: sqlError } = await supabase
+                            .from('tasks')
+                            .update({ 
+                              status: 'completed',
+                              completed_at: new Date().toISOString()
+                            })
+                            .eq('id', task.id);
+                            
+                          console.log("SQL result:", sqlResult, "Error:", sqlError);
+                        } catch (sqlErr) {
+                          console.log("SQL error:", sqlErr);
+                        }
+                        
+                        alert(`Emergency complete attempted for task ${task.id}. Check console for results.`);
+                        
+                      } catch (err) {
+                        console.error("Emergency complete failed:", err);
+                        alert("Emergency complete failed. See console.");
+                      }
+                    }}
+                    className="h-8 mt-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Emergency Complete
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation();
+                      // Redirect to completed tasks page or view
+                      navigate('/tasks/completed');
+                    }}
+                    className="h-8 mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    View Completed Tasks
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation();
+                      // Navigate to the tasks page
+                      navigate('/tasks');
+                    }}
+                    className="h-8 mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Go to Tasks Page
+                  </Button>
+                </>
               )}
             </div>
           ) : (
@@ -679,21 +905,59 @@ const TaskCard = ({
             <DialogTitle className="text-xl text-primary">Confirm Completion</DialogTitle>
             <DialogDescription>
               Are you sure you want to mark this task as complete?
+              {task.assignedTo && <p className="mt-2">Please also rate the person who completed this task.</p>}
             </DialogDescription>
           </DialogHeader>
+          
+          {task.assignedTo && (
+            <div className="py-2 space-y-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Rate this user:</p>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`transition-all duration-200 transform ${rating && rating >= star 
+                        ? 'text-yellow-500 scale-110' 
+                        : 'text-muted-foreground hover:text-yellow-400 hover:scale-105'}`}
+                    >
+                      <Star className="h-6 w-6 fill-current" />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Rating is optional but helps other users know about the quality of work.
+                </p>
+              </div>
+            </div>
+          )}
+          
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => setIsCompleteConfirmationOpen(false)}
+              onClick={() => {
+                setIsCompleteConfirmationOpen(false);
+                setRating(null);
+              }}
               className="transition-all hover:bg-secondary/80"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleCloseTask}
+              disabled={isSubmitting}
               className="transition-all hover:bg-primary/90 hover:shadow-sm hover:shadow-primary/20"
             >
-              Mark as Complete
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Mark as Complete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -708,10 +972,16 @@ const TaskCard = ({
                 Review and manage applications for this task.
               </DialogDescription>
             </DialogHeader>
-            <TaskApplications taskId={task.id} onStatusChange={onStatusChange} />
+            <TaskApplications
+        taskId={task.id}
+        isOpen={isApplicationsDialogOpen}
+        onOpenChange={setIsApplicationsDialogOpen}
+      />
           </DialogContent>
         </Dialog>
       )}
+
+     
     </>
   );
 };
