@@ -292,20 +292,6 @@ const Task = () => {
                 )}
               </TabsList>
               
-              <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <PlusCircle size={18} />
-                    Create Task
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px]">
-                  <CreateTaskForm 
-                    onSubmit={handleCreateTask} 
-                    onCancel={() => setIsOpen(false)} 
-                  />
-                </DialogContent>
-              </Dialog>
             </div>
             
             <TabsContent value="active" className="space-y-4">
