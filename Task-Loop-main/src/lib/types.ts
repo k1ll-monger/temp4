@@ -1,4 +1,3 @@
-
 export type UserType = {
   id: string;
   username: string;
@@ -8,27 +7,28 @@ export type UserType = {
   profileImage?: string;
 };
 
-export type TaskType = {
+export interface TaskType {
   id: string;
   title: string;
   description: string;
   location: string;
   reward: number;
   deadline: Date;
-  taskType: 'normal' | 'joint';
-  status: 'active' | 'completed';
+  taskType: "normal" | "joint";
+  status: "active" | "completed";
   createdAt: Date;
   creatorId: string;
   creatorName: string;
   creatorRating: number;
-  doerId?: string;
-  doerName?: string;
-  doerRating?: number;
-  completionCode?: {
-    requestor: string;
-    doer: string;
-  };
-};
+  task_type?: string;
+  created_at?: string;
+  creator_id?: string;
+  creator_name?: string;
+  creator_rating?: number;
+  updated_at?: string;
+  assigned_to?: string | null;
+  completed_at?: string | null;
+}
 
 export type JointTaskMemberType = {
   id: string;

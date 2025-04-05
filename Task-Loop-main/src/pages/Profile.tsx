@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Star, Edit, LogOut, User, Camera, Upload } from 'lucide-react';
 import { UserType, TaskType } from '@/lib/types';
 import TaskCard from '@/components/TaskCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,10 @@ interface Task {
   assigned_to: string | null;
   completed_at: string | null;
   updated_at: string;
+  taskType?: "normal" | "joint";
+  createdAt?: Date;
+  creatorId?: string;
+  creatorName?: string;
 }
 
 const Profile = () => {
@@ -61,6 +65,9 @@ const Profile = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [refreshingTasks, setRefreshingTasks] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -330,6 +337,208 @@ const Profile = () => {
     }
   };
 
+  const handleEditTask = async (task: TaskType) => {
+    const taskToEdit: Task = {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      location: task.location,
+      reward: task.reward,
+      deadline: task.deadline.toISOString(),
+      task_type: task.taskType,
+      status: task.status,
+      created_at: task.createdAt.toISOString(),
+      creator_id: task.creatorId,
+      creator_name: task.creatorName,
+      creator_rating: task.creatorRating,
+      updated_at: new Date().toISOString(),
+      assigned_to: null,
+      completed_at: null,
+      taskType: task.taskType,
+      createdAt: task.createdAt,
+      creatorId: task.creatorId,
+      creatorName: task.creatorName
+    };
+    setEditingTask(taskToEdit);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateTask = async (updatedTask: Task) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          title: updatedTask.title,
+          description: updatedTask.description,
+          location: updatedTask.location,
+          reward: updatedTask.reward,
+          deadline: updatedTask.deadline,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedTask.id);
+
+      if (error) throw error;
+
+      const updatedTaskType: TaskType = {
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        location: updatedTask.location,
+        reward: updatedTask.reward,
+        deadline: new Date(updatedTask.deadline),
+        taskType: updatedTask.task_type as "normal" | "joint",
+        status: updatedTask.status as "active" | "completed",
+        createdAt: new Date(updatedTask.created_at),
+        creatorId: updatedTask.creator_id,
+        creatorName: updatedTask.creator_name,
+        creatorRating: updatedTask.creator_rating
+      };
+
+      setActiveTasks(tasks => 
+        tasks.map(task => task.id === updatedTask.id ? updatedTask : task)
+      );
+
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setActiveTasks(tasks => tasks.filter(task => task.id !== taskId));
+
+      toast({
+        title: "Success",
+        description: "Task deleted successfully",
+      });
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTaskStatusChange = async (taskId: string) => {
+    try {
+      setRefreshingTasks(true);
+      
+      // Update the task status in the database
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      // Remove the completed task from active tasks
+      setActiveTasks(tasks => tasks.filter(task => task.id !== taskId));
+
+      toast({
+        title: "Success",
+        description: "Task marked as completed",
+      });
+    } catch (error: any) {
+      console.error('Error updating task status:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task status",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshingTasks(false);
+    }
+  };
+
+  const handleCancelAssignedTask = async (taskId: string) => {
+    try {
+      // Update the task status back to active
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .update({ 
+          status: 'active',
+          assigned_to: null,
+          assigned_at: null
+        })
+        .eq('id', taskId);
+
+      if (taskError) throw taskError;
+
+      // Update the application status to cancelled
+      const { error: applicationError } = await supabase
+        .from('task_applications')
+        .update({ status: 'cancelled' })
+        .eq('task_id', taskId)
+        .eq('status', 'accepted');
+
+      if (applicationError) throw applicationError;
+
+      toast({
+        title: "Success",
+        description: "Task assignment cancelled successfully.",
+      });
+
+      fetchActiveTasks();
+    } catch (error: any) {
+      console.error('Error cancelling task assignment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel task assignment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: 'cancelled' })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Task cancelled successfully.",
+      });
+
+      fetchActiveTasks();
+    } catch (error: any) {
+      console.error('Error cancelling task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel task. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -471,6 +680,9 @@ const Profile = () => {
             <TabsContent value="tasks" className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Your Active Tasks ({activeTasks.length})</h3>
+                {refreshingTasks && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                )}
               </div>
               {loadingTasks ? (
                 <div className="flex items-center justify-center py-8">
@@ -482,7 +694,7 @@ const Profile = () => {
                 </div>
               ) : (
                 <div className="flex flex-col space-y-6">
-                  {activeTasks.map(task => (
+                  {activeTasks.map((task) => (
                     <TaskCard
                       key={task.id}
                       task={{
@@ -493,13 +705,16 @@ const Profile = () => {
                         reward: task.reward,
                         deadline: new Date(task.deadline),
                         taskType: task.task_type as "normal" | "joint",
-                        status: task.status as "active" | "completed",
+                        status: task.status as "active" | "completed" | "assigned",
                         createdAt: new Date(task.created_at),
                         creatorId: task.creator_id,
                         creatorName: task.creator_name,
-                        creatorRating: task.creator_rating,
+                        creatorRating: task.creator_rating
                       }}
                       isOwner={true}
+                      onCancel={task.status === 'assigned' ? handleCancelAssignedTask : handleCancelTask}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
                     />
                   ))}
                 </div>
@@ -544,6 +759,68 @@ const Profile = () => {
               Upload
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          {editingTask && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateTask(editingTask);
+            }}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={editingTask.title}
+                    onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    value={editingTask.description}
+                    onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={editingTask.location}
+                    onChange={(e) => setEditingTask({ ...editingTask, location: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="reward">Reward</Label>
+                  <Input
+                    id="reward"
+                    type="number"
+                    value={editingTask.reward}
+                    onChange={(e) => setEditingTask({ ...editingTask, reward: parseFloat(e.target.value) })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="deadline">Deadline</Label>
+                  <Input
+                    id="deadline"
+                    type="datetime-local"
+                    value={new Date(editingTask.deadline).toISOString().slice(0, 16)}
+                    onChange={(e) => setEditingTask({ ...editingTask, deadline: new Date(e.target.value).toISOString() })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Save changes</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
