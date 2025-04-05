@@ -67,6 +67,51 @@ This script will:
    - Remove any existing status check constraints
    - Add a new constraint that allows all required statuses
 
+## Chat Functionality Setup
+
+To enable real-time chat functionality between users, you need to set up the chat tables in your Supabase database. Follow these steps:
+
+1. Access your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy the contents of the `create_chat_tables.sql` file
+4. Run the SQL script to create the necessary tables and set up Row Level Security (RLS) policies
+
+The script will create:
+- `chat_rooms` table: Stores chat room information between users
+- `chat_messages` table: Stores individual messages in chat rooms
+- Appropriate indexes for better performance
+- RLS policies to ensure users can only access their own chat rooms and messages
+- A trigger to automatically update the `updated_at` timestamp
+
+### Chat Features
+
+The chat functionality includes:
+- Real-time messaging between users
+- Chat rooms associated with tasks
+- Message history
+- Read/unread status
+- User avatars and online status
+- Mobile-responsive design
+
+### Troubleshooting Chat Issues
+
+If you encounter any issues with the chat functionality:
+
+1. **Missing Chat Tables**
+   - Ensure you've run the `create_chat_tables.sql` script
+   - Check if the tables exist in your Supabase database
+   - Verify that the RLS policies are correctly set up
+
+2. **Real-time Updates Not Working**
+   - Check your Supabase project settings
+   - Ensure real-time is enabled for the `chat_messages` table
+   - Verify your network connection
+
+3. **Permission Issues**
+   - Check if users are properly authenticated
+   - Verify that the RLS policies are correctly configured
+   - Ensure users have the necessary permissions to access chat rooms
+
 ## Troubleshooting
 
 ### Missing Task Columns

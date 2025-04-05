@@ -127,6 +127,67 @@ export interface Database {
           updated_at?: string;
         };
       };
+      chat_rooms: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          task_id: string | null;
+          creator_id: string;
+          participant_id: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          task_id?: string | null;
+          creator_id: string;
+          participant_id: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          task_id?: string | null;
+          creator_id?: string;
+          participant_id?: string;
+        };
+      };
+      chat_messages: {
+        Row: {
+          id: string;
+          room_id: string;
+          sender_id: string;
+          message: string;
+          created_at: string;
+          read: boolean;
+        };
+        Insert: {
+          id?: string;
+          room_id: string;
+          sender_id: string;
+          message: string;
+          created_at?: string;
+          read?: boolean;
+        };
+        Update: {
+          id?: string;
+          room_id?: string;
+          sender_id?: string;
+          message?: string;
+          created_at?: string;
+          read?: boolean;
+        };
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
     };
   };
 } 

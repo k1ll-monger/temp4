@@ -98,6 +98,12 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
           </Link>
         </NavigationMenuItem>
         <NavigationMenuItem>
+          <Link to="/chat" className={navigationMenuTriggerStyle()}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Chat
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
           <Link to="/create-task" className={navigationMenuTriggerStyle()}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Create Task
@@ -166,6 +172,14 @@ const Navbar = ({ onSearch, session, onProtectedNavigation }: NavbarProps) => {
                 <MainNavLinks />
                 {user && (
                   <>
+                    <Link
+                      to="/chat"
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Chat
+                    </Link>
                     <Link
                       to="/profile"
                       className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"

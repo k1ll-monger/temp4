@@ -101,6 +101,14 @@ const App = () => {
                 }
               />
               <Route
+                path="/chat/:roomId"
+                element={
+                  <ProtectedRoute>
+                    <Chat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/history"
                 element={
                   <ProtectedRoute>

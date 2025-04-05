@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Bell, CheckCircle, XCircle, AlertCircle, Calendar, MapPin, DollarSign, User, Clock } from 'lucide-react';
+import { Loader2, Bell, CheckCircle, XCircle, AlertCircle, Calendar, MapPin, DollarSign, User, Clock, Check, X, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 interface Application {
   id: string;
@@ -265,6 +268,7 @@ const Notifications = () => {
           if (tableCheckError && tableCheckError.code === '42P01') {
             console.log('Notifications table does not exist yet, skipping notification creation');
             return;
+            
           }
           
           // If table exists, create notification
@@ -477,6 +481,52 @@ const Notifications = () => {
     }
   };
 
+  const handleStartChat = async (application: Application) => {
+    try {
+      // Check if a chat room already exists
+      const { data: existingRoom, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .eq('task_id', application.task_id)
+        .eq('creator_id', application.applicant_id)
+        .eq('participant_id', user?.id)
+        .single();
+
+      if (roomError && roomError.code !== 'PGRST116') {
+        throw roomError;
+      }
+
+      if (existingRoom) {
+        // Navigate to existing chat room
+        navigate(`/chat/${existingRoom.id}`);
+        return;
+      }
+
+      // Create a new chat room
+      const { data: newRoom, error: createError } = await supabase
+        .from('chat_rooms')
+        .insert({
+          task_id: application.task_id,
+          creator_id: application.applicant_id,
+          participant_id: user?.id,
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // Navigate to the new chat room
+      navigate(`/chat/${newRoom.id}`);
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to start chat. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Filter applications by status
   const pendingApplications = applications.filter(app => app.status === 'pending');
   const acceptedApplications = applications.filter(app => app.status === 'accepted');
@@ -643,15 +693,31 @@ const Notifications = () => {
 
                             <div className="flex gap-2">
                               <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleApplicationAction(application.id, 'accept')}
+                                disabled={loading}
                               >
+                                <Check className="h-4 w-4 mr-1" />
                                 Accept
                               </Button>
                               <Button
-                                variant="destructive"
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleApplicationAction(application.id, 'reject')}
+                                disabled={loading}
                               >
+                                <X className="h-4 w-4 mr-1" />
                                 Reject
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStartChat(application)}
+                                disabled={loading}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Chat
                               </Button>
                             </div>
                           </div>
