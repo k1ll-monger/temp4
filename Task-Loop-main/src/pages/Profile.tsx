@@ -587,12 +587,6 @@ const Profile = () => {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <Button 
-                  className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                  onClick={() => setIsProfileImageDialogOpen(true)}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
               </div>
               
               {isEditing ? (
@@ -723,44 +717,6 @@ const Profile = () => {
           </Tabs>
         </div>
       </div>
-
-      <Dialog open={isProfileImageDialogOpen} onOpenChange={setIsProfileImageDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Change profile picture</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center space-y-4 py-4">
-            <div className="flex items-center justify-center">
-              <Avatar className="h-24 w-24">
-                {profile.avatar_url ? (
-                  <AvatarImage 
-                    src={profile.avatar_url} 
-                    alt={profile.username}
-                  />
-                ) : (
-                  <AvatarFallback>
-                    <User className="h-12 w-12" />
-                  </AvatarFallback>
-                )}
-              </Avatar>
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleProfileImageChange}
-              className="hidden"
-            />
-            <Button 
-              className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}
-              onClick={handleImageUpload}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
